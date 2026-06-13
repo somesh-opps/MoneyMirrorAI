@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Sparkles, ShieldCheck, LayoutDashboard, ScanLine, CreditCard, User, LogOut, ChevronDown, Wand2 } from "lucide-react";
+import { Sparkles, ShieldCheck, LayoutDashboard, ScanLine, CreditCard, User, LogOut, ChevronDown, Wand2, MessageSquare } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/lib/authStore";
 import { useAnalysisStore } from "@/lib/analysisStore";
@@ -77,6 +77,11 @@ export function Navbar() {
                   <Wand2 className="h-3.5 w-3.5" /> Personalize
                 </span>
               </Link>
+              <Link to="/chat" className={linkCls} activeProps={{ className: activeCls }}>
+                <span className="inline-flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5" /> Chat
+                </span>
+              </Link>
               <Link
                 to="/scam-shield"
                 className="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium hover:shadow-card transition-shadow"
@@ -136,6 +141,13 @@ export function Navbar() {
                 activeOptions={{ exact: true }}
               >
                 Home
+              </Link>
+              <Link
+                to="/chat"
+                className={linkCls}
+                activeProps={{ className: activeCls }}
+              >
+                Chat
               </Link>
               <Link
                 to="/scam-shield"

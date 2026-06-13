@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, BarChart, Bar,
 } from "recharts";
-import { AlertTriangle, ArrowUpRight, Sparkles, TrendingUp } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Sparkles, TrendingUp, ShieldCheck } from "lucide-react";
 
 const CHART_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "oklch(0.7 0.15 200)", "oklch(0.6 0.18 340)"];
 
@@ -110,6 +110,50 @@ export function MoneyMirrorScore({ score }: { score: number }) {
           </h2>
           <p className="mt-2 max-w-md text-sm text-muted-foreground">
             This score blends your spending pattern, subscription bloat, and savings discipline into a single signal.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EmergencyReadiness
+// ─────────────────────────────────────────────────────────────────────────────
+export function EmergencyReadiness({ months }: { months: number }) {
+  const days = Math.round(months * 30);
+  const targetDays = 6 * 30; // 180 days
+  const score = Math.min(100, Math.round((days / targetDays) * 100));
+  
+  const angle = (score / 100) * 360;
+  const color = score >= 75 ? "var(--success)" : score >= 55 ? "var(--chart-1)" : score >= 35 ? "var(--warning)" : "var(--destructive)";
+  const Icon = score >= 75 ? ShieldCheck : AlertTriangle;
+
+  return (
+    <div className="glass-card relative overflow-hidden rounded-3xl p-8">
+      <div className="flex flex-col items-center gap-6 md:flex-row-reverse md:items-center md:justify-between">
+        <div className="relative h-44 w-44 shrink-0">
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{ background: `conic-gradient(${color} ${angle}deg, var(--muted) 0deg)` }}
+          />
+          <div className="absolute inset-3 flex flex-col items-center justify-center rounded-full bg-card shadow-elevated">
+            <span className="font-display text-5xl font-bold tracking-tight">{score}</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">/ 100</span>
+          </div>
+        </div>
+        <div className="flex-1 text-center md:text-left">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <Icon className="h-3 w-3" /> Emergency Readiness
+          </span>
+          <h2 className="mt-3 font-display text-3xl font-bold tracking-tight">
+            Current savings can support you for {score < 75 ? "only " : ""}
+            <span style={{ color }}>{days} days</span> without income.
+          </h2>
+          <p className="mt-2 max-w-md text-sm text-muted-foreground">
+            {score >= 75 
+              ? "Your emergency fund is in great shape to handle unexpected situations." 
+              : "Building a buffer of 6 months (180 days) is highly recommended for financial security."}
           </p>
         </div>
       </div>

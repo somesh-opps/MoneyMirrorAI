@@ -18,6 +18,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PersonalizeRouteImport } from './routes/personalize'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AnalyzeRouteImport } from './routes/analyze'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -66,6 +67,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyzeRoute = AnalyzeRouteImport.update({
   id: '/analyze',
   path: '/analyze',
@@ -80,6 +86,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analyze': typeof AnalyzeRoute
+  '/chat': typeof ChatRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/personalize': typeof PersonalizeRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analyze': typeof AnalyzeRoute
+  '/chat': typeof ChatRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/personalize': typeof PersonalizeRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analyze': typeof AnalyzeRoute
+  '/chat': typeof ChatRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/personalize': typeof PersonalizeRoute
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/analyze'
+    | '/chat'
     | '/dashboard'
     | '/login'
     | '/personalize'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/analyze'
+    | '/chat'
     | '/dashboard'
     | '/login'
     | '/personalize'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/analyze'
+    | '/chat'
     | '/dashboard'
     | '/login'
     | '/personalize'
@@ -162,6 +174,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyzeRoute: typeof AnalyzeRoute
+  ChatRoute: typeof ChatRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   PersonalizeRoute: typeof PersonalizeRoute
@@ -238,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/analyze': {
       id: '/analyze'
       path: '/analyze'
@@ -258,6 +278,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyzeRoute: AnalyzeRoute,
+  ChatRoute: ChatRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   PersonalizeRoute: PersonalizeRoute,

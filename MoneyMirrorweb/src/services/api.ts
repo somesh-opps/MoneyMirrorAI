@@ -118,8 +118,12 @@ export type Intervention = {
 export type ScamResponse = {
   risk_score: number;
   reasons: string[];
+  risk_reasons?: string[];
+  trust_signals?: string[];
+  critical_flags?: string[];
   recommendation: string;
   verdict: "safe" | "suspicious" | "dangerous";
+  confidence?: number;
 };
 
 export type AuthUser = {

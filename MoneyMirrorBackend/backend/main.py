@@ -668,10 +668,10 @@ Return ONLY a valid JSON array of these objects. No markdown formatting, no expl
 @app.post("/scam-shield")
 def scam_shield(payload: ScamShieldPayload):
     """
-    Hybrid Scam Detection
-    Layer 1: Rule-Based Detection
-    Layer 2: Groq/Gemini AI Analysis
-    Layer 3: Risk Score Generation
+    Redesigned Scam Detection Engine
+    Layer 1: Deterministic Multi-Factor Scoring
+    Layer 2: Generative Fraud Intent Analysis
+    Layer 3: Escalation Combiner
     """
     message = payload.message.strip()
     if not message:
@@ -679,49 +679,156 @@ def scam_shield(payload: ScamShieldPayload):
 
     m_lower = message.lower()
 
-    # ── Layer 1: Rule-Based Detection ──
-    SCAM_KEYWORDS = {
-        "kyc": 15, "urgent": 20, "immediately": 20, "otp": 30, "verify": 10,
-        "reward": 20, "lottery": 25, "suspended": 15, "blocked": 15, "click": 10,
-        "expire": 20, "warning": 20
-    }
-
-    rule_risk = 0
-    rule_reasons = []
-
-    for word, score in SCAM_KEYWORDS.items():
-        if word in m_lower:
-            rule_risk += score
-            rule_reasons.append(f"Contains keyword: '{word}'")
-
-    urls = re.findall(r'https?://\S+', message)
-    if urls:
-        rule_risk += 20
-        rule_reasons.append("Contains suspicious link")
-
+    # ── Configuration ──
+    TRUSTED_DOMAINS = [
+        "sbi.co.in", "icicibank.com", "hdfcbank.com", "axisbank.com",
+        "gov.in", "uidai.gov.in",
+        "amazon.in", "flipkart.com", "google.com", "paytm.com", "phonepe.com"
+    ]
     SUSPICIOUS_DOMAINS = [".xyz", ".top", ".click", ".live", ".vip", "bit.ly", "tinyurl"]
-    for domain in SUSPICIOUS_DOMAINS:
-        if domain in m_lower:
-            rule_risk += 20
-            rule_reasons.append(f"Suspicious domain ({domain})")
 
-    rule_risk = min(rule_risk, 100)
+    # ── Scores & Arrays ──
+    trust_score = 0
+    domain_risk = 0
+    urgency_score = 0
+    credential_risk = 0
+    manipulation_score = 0
 
-    # ── Layer 2: Groq AI Analysis ──
-    prompt = f"""You are a cybersecurity fraud analyst.
+    trust_signals = []
+    risk_reasons = []
+    critical_flags = []
+
+    # 1. DOMAIN ANALYSIS
+    urls = re.findall(r'https?://[^\s]+', message)
+    has_trusted_domain = False
+    has_suspicious_domain = False
+    has_unknown_domain = False
+
+    for url in urls:
+        domain_found = False
+        for trusted in TRUSTED_DOMAINS:
+            if trusted in url.lower():
+                has_trusted_domain = True
+                trust_signals.append(f"✓ Verified domain ({trusted})")
+                trust_score += 15
+                domain_found = True
+                break
+        for suspicious in SUSPICIOUS_DOMAINS:
+            if suspicious in url.lower():
+                has_suspicious_domain = True
+                domain_risk += 40
+                critical_flags.append("Suspicious Domain Detected")
+                risk_reasons.append(f"Malicious or deceptive link ({suspicious})")
+                domain_found = True
+                break
+        if not domain_found:
+            has_unknown_domain = True
+            domain_risk += 20
+            risk_reasons.append("Unknown unverified link")
+
+    # 2. CRITICAL FRAUD TRIGGERS (CREDENTIAL THEFT)
+    has_otp = bool(re.search(r'\b(otp|one time password)\b', m_lower))
+    has_pin = bool(re.search(r'\b(pin|upi pin|m-pin)\b', m_lower))
+    has_card = bool(re.search(r'\b(cvv|card details|credit card number|debit card)\b', m_lower))
+    has_password = bool(re.search(r'\b(password|login credentials|internet banking)\b', m_lower))
+
+    has_credential_request = has_otp or has_pin or has_card or has_password
+
+    if has_otp:
+        credential_risk += 50
+        critical_flags.append("OTP Request Detected")
+        risk_reasons.append("Attempt to harvest OTP")
+    if has_pin:
+        credential_risk += 50
+        critical_flags.append("UPI PIN Request Detected")
+        risk_reasons.append("Attempt to harvest financial PIN")
+    if has_card or has_password:
+        credential_risk += 50
+        critical_flags.append("Credential Theft Attempt")
+        risk_reasons.append("Attempt to steal sensitive credentials")
+
+    # 3. MANIPULATION (THREATS & REWARDS)
+    has_threat = bool(re.search(r'\b(suspended|blocked|terminate|locked|permanently|freeze|frozen)\b', m_lower))
+    has_reward = bool(re.search(r'\b(reward|lottery|winner|prize|cashback|claim|refund pending)\b', m_lower))
+
+    if has_threat:
+        manipulation_score += 30
+        risk_reasons.append("Threatening or coercive language")
+    if has_reward:
+        manipulation_score += 30
+        risk_reasons.append("Financial reward manipulation")
+
+    # 4. URGENCY
+    has_urgency = bool(re.search(r'\b(urgent|immediately|now|expire|expires|warning|within|minutes|today)\b', m_lower))
+    if has_urgency:
+        urgency_score += 25
+        risk_reasons.append("Coercive Urgency")
+
+    # 5. CONTEXTUAL MILD ACTION
+    has_mild_action = bool(re.search(r'\b(kyc|verify|update|account|click|login)\b', m_lower))
+    if has_mild_action and (has_urgency or has_suspicious_domain or has_threat):
+        manipulation_score += 15
+        risk_reasons.append("Suspicious action requested under pressure")
+
+    # ── COMPOUND ESCALATION RULES ──
+    # Combinations that override math and force a high risk assessment
+    auto_dangerous = False
+
+    if (has_otp or has_pin) and has_urgency:
+        auto_dangerous = True
+        critical_flags.append("Urgent Credential Request")
+
+    if has_credential_request and (has_suspicious_domain or has_unknown_domain):
+        auto_dangerous = True
+        critical_flags.append("Credential Request with Unverified Link")
+
+    if has_threat and has_mild_action and has_urgency:
+        auto_dangerous = True
+        critical_flags.append("Coercive Action Demand")
+
+    if has_reward and (has_pin or has_otp or has_mild_action):
+        auto_dangerous = True
+        critical_flags.append("Reward Manipulation")
+
+    # Base Rule Score Calculation
+    rule_score = domain_risk + credential_risk + manipulation_score + urgency_score
+    # Trust only slightly reduces rule score (max 15), but NEVER cancels critical risks
+    rule_score -= trust_score
+    rule_score = max(0, rule_score)
+
+    if auto_dangerous:
+        rule_score = max(rule_score, 95)
+    
+    if not has_credential_request and not has_threat and not has_reward:
+        trust_signals.append("✓ No credential or payment requested")
+
+    # ── Layer 2: LLM Analysis ──
+    prompt = f"""You are a senior cybersecurity fraud analyst detecting phishing, social engineering, and financial scams.
 Analyze this message:
-{message}
+"{message}"
+
+CONTEXT & GUARDRAILS:
+1. Legitimate banking notifications commonly contain links, KYC notices, account updates, transaction alerts, statements, or verification reminders. These alone are NOT evidence of fraud.
+2. AGGRESSIVELY INCREASE RISK to HIGH/CRITICAL if you detect ANY of the following intents:
+   - OTP harvesting or PIN harvesting
+   - Credential theft (passwords, CVV)
+   - Account takeover threats (e.g., "account will be blocked")
+   - Financial reward manipulation (e.g., fake cashback, pending refunds)
+   - Suspicious or unverified links combined with urgency
+3. Prioritize strict fraud detection over politeness.
 
 Return exactly this JSON format:
 {{
-  "scam_probability": <number 0-100>,
+  "fraud_score": <number 0-100>,
   "reasons": ["<reason1>", "<reason2>"],
-  "advice": "<string>"
+  "intent": "<short description of the sender's intent>",
+  "advice": "<actionable advice>"
 }}"""
 
     ai_score = 0
     ai_reasons = []
     ai_advice = ""
+    ai_intent = ""
 
     groq_keys = [
         os.getenv("GROQ_API_KEY_1"),
@@ -749,28 +856,43 @@ Return exactly this JSON format:
             if res.status_code == 200:
                 data = res.json()
                 content = json.loads(data["choices"][0]["message"]["content"])
-                ai_score = int(content.get("scam_probability", 0))
+                ai_score = int(content.get("fraud_score", 0))
                 ai_reasons = content.get("reasons", [])
                 ai_advice = content.get("advice", "")
+                ai_intent = content.get("intent", "")
                 success = True
                 break
         except Exception as e:
             continue
 
-    # Fallback if AI fails completely
     if not success:
-        ai_score = rule_risk
-        ai_advice = "Do NOT click the link." if rule_risk >= 50 else "Always verify unexpected messages."
+        ai_score = min(rule_score, 100)
+        ai_advice = "Do NOT interact if the message asks for OTP, PIN, or clicks on unknown links."
 
-    # ── Layer 3: Risk Score Generation ──
-    final_score = int((rule_risk * 0.4) + (ai_score * 0.6))
+    # ── Layer 3: Hybrid Combiner ──
+    final_score = int((rule_score * 0.4) + (ai_score * 0.6))
+    
+    # Escalation Overrides
+    if auto_dangerous or len(critical_flags) > 0:
+        final_score = max(final_score, 85)
+
+    # Prevent trust signals from dropping obvious fraud
+    if has_credential_request and final_score < 80:
+        final_score = 85
+
     final_score = min(max(final_score, 0), 100)
 
-    # Combine unique reasons
+    # Cleanups
+    trust_signals = list(dict.fromkeys(trust_signals))[:3]
+    critical_flags = list(dict.fromkeys(critical_flags))
+    
     combined_reasons = []
-    for r in rule_reasons + ai_reasons:
+    for r in risk_reasons + ai_reasons:
         if r not in combined_reasons:
             combined_reasons.append(r)
+            
+    if ai_intent and ai_score >= 50:
+        combined_reasons.insert(0, f"Detected Intent: {ai_intent}")
 
     if final_score >= 70:
         verdict = "dangerous"
@@ -781,12 +903,18 @@ Return exactly this JSON format:
     else:
         verdict = "safe"
         recommendation = ai_advice if success else "This message appears safe, but always remain vigilant."
+        if not combined_reasons:
+             combined_reasons.append("No strong indicators of fraud found.")
 
     return {
         "risk_score": final_score,
-        "reasons": combined_reasons[:6], # Show top 6 reasons
+        "verdict": verdict,
+        "risk_reasons": combined_reasons[:6],
+        "reasons": combined_reasons[:6],  # Backend-compat
+        "trust_signals": trust_signals,
+        "critical_flags": critical_flags,
         "recommendation": recommendation,
-        "verdict": verdict
+        "confidence": 95 if success else 60
     }
 
 

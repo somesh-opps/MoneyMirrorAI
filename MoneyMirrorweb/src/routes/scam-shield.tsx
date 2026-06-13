@@ -94,8 +94,8 @@ function ScamShield() {
 function ScamResult({ r }: { r: ScamResponse }) {
   const color =
     r.verdict === "dangerous" ? "var(--destructive)" :
-    r.verdict === "suspicious" ? "var(--warning)" :
-    "var(--success)";
+      r.verdict === "suspicious" ? "var(--warning)" :
+        "var(--success)";
   const label = r.verdict === "dangerous" ? "DANGEROUS" : r.verdict === "suspicious" ? "SUSPICIOUS" : "LOOKS SAFE";
   const Icon = r.verdict === "safe" ? ShieldCheck : r.verdict === "suspicious" ? AlertTriangle : ShieldAlert;
   const angle = (r.risk_score / 100) * 360;
@@ -121,13 +121,35 @@ function ScamResult({ r }: { r: ScamResponse }) {
       <div className="rounded-3xl border border-border bg-card p-8 shadow-card">
         <h3 className="font-display text-lg font-bold">Why this score</h3>
         <p className="text-sm text-muted-foreground">Signals our model detected in your message.</p>
+
+        {r.trust_signals && r.trust_signals.length > 0 && (
+          <ul className="mt-5 mb-5 space-y-2.5">
+            {r.trust_signals.map((signal, i) => (
+              <li key={`trust-${i}`} className="flex items-start gap-3 rounded-xl border border-border bg-success/10 px-4 py-3 text-sm text-success font-medium">
+                {signal}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {r.critical_flags && r.critical_flags.length > 0 && (
+          <ul className="mt-5 mb-5 space-y-2.5">
+            {r.critical_flags.map((flag, i) => (
+              <li key={`crit-${i}`} className="flex items-start gap-3 rounded-xl border border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive font-bold">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">!</span>
+                {flag}
+              </li>
+            ))}
+          </ul>
+        )}
+
         {r.reasons.length === 0 ? (
           <p className="mt-6 rounded-xl bg-success/10 px-4 py-3 text-sm text-success">No scam signals detected.</p>
         ) : (
           <ul className="mt-5 space-y-2.5">
             {r.reasons.map((reason, i) => (
-              <li key={i} className="flex items-start gap-3 rounded-xl border border-border bg-background/50 px-4 py-3 text-sm">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-[10px] font-bold text-destructive">!</span>
+              <li key={`risk-${i}`} className="flex items-start gap-3 rounded-xl border border-border bg-background/50 px-4 py-3 text-sm">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-warning/20 text-[10px] font-bold text-warning">!</span>
                 {reason}
               </li>
             ))}

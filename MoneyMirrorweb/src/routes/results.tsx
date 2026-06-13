@@ -6,7 +6,7 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import {
   DashboardSummary,
   MoneyMirrorScore, FinancialSummary, ExpenseChart, SubscriptionCard,
-  FinancialTwinSection, ActionCard, EmptyState, SectionHeader,
+  FinancialTwinSection, ActionCard, EmptyState, SectionHeader, EmergencyReadiness,
 } from "@/components/ResultComponents";
 import { formatINR } from "@/lib/analysisStore";
 import { ArrowRight, ShieldCheck, Activity, Search, Users, Zap, RefreshCw } from "lucide-react";
@@ -128,8 +128,8 @@ function ResultsPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${activeTab === tab.id
-                    ? "bg-foreground text-background shadow-elevated"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-foreground text-background shadow-elevated"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -153,6 +153,7 @@ function ResultsPage() {
               description="A single score plus the categories that shaped it."
             />
             <MoneyMirrorScore score={doctor.summary.score} />
+            <EmergencyReadiness months={doctor.summary.emergency_fund_months ?? 0} />
 
             {/* Extra doctor stats */}
             {(doctor.summary.savings_rate !== undefined || doctor.summary.expense_ratio !== undefined) && (

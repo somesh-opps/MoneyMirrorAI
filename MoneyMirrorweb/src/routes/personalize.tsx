@@ -8,6 +8,7 @@ import {
 import { useAuthStore } from "@/lib/authStore";
 import { useAnalysisStore, formatINR } from "@/lib/analysisStore";
 import { getAnalysisSummary, getAnalysisHistory, type AnalysisSummary, type AnalysisHistoryItem } from "@/services/api";
+import { EmergencyReadiness } from "@/components/ResultComponents";
 
 export const Route = createFileRoute("/personalize")({
   head: () => ({
@@ -378,6 +379,11 @@ function PersonalizePage() {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* ── Row 4.5: Emergency Readiness ── */}
+          {(doctor?.summary?.emergency_fund_months !== undefined || insights?.emergency_fund_months !== undefined) && (
+            <EmergencyReadiness months={doctor?.summary?.emergency_fund_months ?? insights?.emergency_fund_months ?? 0} />
           )}
 
           {/* ── Row 5: Doctor Insights ── */}

@@ -110,6 +110,9 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+  const isChatRoute = router.state.location.pathname.startsWith('/chat');
+
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex min-h-screen flex-col bg-background">
@@ -117,7 +120,7 @@ function RootComponent() {
         <main className="flex-1">
           <Outlet />
         </main>
-        <Footer />
+        {!isChatRoute && <Footer />}
       </div>
       <Toaster position="top-right" richColors />
       <CalculatorWidget />
