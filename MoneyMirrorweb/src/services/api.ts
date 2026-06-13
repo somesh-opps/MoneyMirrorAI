@@ -70,6 +70,7 @@ export type Subscription = {
   annual_cost: number;
   potential_savings: number;
   category?: string;
+  action_plan?: string;
 };
 
 export type FinancialTwinResponse = {
@@ -166,7 +167,7 @@ function getUserId(): string | undefined {
 // ─── Financial endpoints (proxied through Flask → FastAPI) ────
 export const analyzeTransactions = (
   transactions: Transaction[],
-  opts?: { monthly_income?: number; monthly_savings?: number; current_emergency_fund?: number },
+  opts?: { monthly_income?: number; monthly_savings?: number; current_emergency_fund?: number; month?: string },
 ) =>
   withFallback<DoctorResponse>(
     async () =>
@@ -177,15 +178,16 @@ export const analyzeTransactions = (
           monthly_savings: opts?.monthly_savings ?? 0,
           current_emergency_fund: opts?.current_emergency_fund ?? 0,
           user_id: getUserId(),       // ← persists to DB
+          month: opts?.month,
         })
       ).data,
     () => mockAnalyzeTransactions(transactions),
     "analyzeTransactions",
   );
 
-export const detectSubscriptions = (transactions: Transaction[]) =>
+export const detectSubscriptions = (transactions: Transaction[], month?: string) =>
   withFallback<{ subscriptions: Subscription[] }>(
-    async () => (await api.post("/detect-subscriptions", { transactions, user_id: getUserId() })).data,
+    async () => (await api.post("/detect-subscriptions", { transactions, user_id: getUserId(), month })).data,
     () => mockDetectSubscriptions(transactions),
     "detectSubscriptions",
   );
@@ -198,6 +200,7 @@ export const generateFinancialTwin = (payload: {
   shopping_expense?: number;
   subscription_expense?: number;
   categories?: Record<string, number>;
+  month?: string;
 }) =>
   withFallback<FinancialTwinResponse>(
     async () => (await api.post("/financial-twin", { ...payload, user_id: getUserId() })).data,
@@ -213,6 +216,7 @@ export const generateInterventions = (payload: {
   transactions: Transaction[];
   monthly_income: number;
   monthly_expenses: number;
+  month?: string;
 }) =>
   withFallback<{ interventions: Intervention[] }>(
     async () => (await api.post("/interventions", { ...payload, user_id: getUserId() })).data,

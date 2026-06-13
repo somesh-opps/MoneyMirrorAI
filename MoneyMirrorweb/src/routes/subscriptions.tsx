@@ -88,6 +88,8 @@ function SubscriptionCreepPage() {
   const [pendingCancel, setPendingCancel] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingAutoName, setEditingAutoName] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", amount: "", cycle: "monthly" as BillingCycle, category: "Streaming", priority: "medium" as Priority });
   const [formError, setFormError] = useState("");
 
@@ -117,6 +119,22 @@ function SubscriptionCreepPage() {
     setCancelled((p) => { const s = new Set(p); s.delete(name); return s; });
   };
   const deleteSub = (id: string) => setManualSubs((p) => p.filter((s) => s.id !== id));
+  
+  const startEdit = (sub: ManualSub) => {
+    setForm({ name: sub.name, amount: String(sub.amount), cycle: sub.cycle, category: sub.category, priority: sub.priority });
+    setEditingId(sub.id);
+    setEditingAutoName(null);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const startEditAuto = (sub: Subscription) => {
+    setForm({ name: sub.name, amount: String(sub.monthly_cost), cycle: "monthly", category: sub.category || "Streaming", priority: "medium" });
+    setEditingId(null);
+    setEditingAutoName(sub.name);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const activeManual    = manualSubs.filter((s) => !cancelled.has(s.id));
   const activeAuto      = autoSubs.filter((s) => !cancelled.has(s.name));
@@ -135,16 +153,29 @@ function SubscriptionCreepPage() {
     const amt = parseFloat(form.amount);
     if (isNaN(amt) || amt <= 0) { setFormError("Enter a valid amount"); return; }
     setFormError("");
-    const newSub: ManualSub = {
-      id: crypto.randomUUID(),
-      name: form.name.trim(),
-      amount: amt,
-      cycle: form.cycle,
-      category: form.category,
-      priority: form.priority,
-    };
-    setManualSubs((prev) => [newSub, ...prev]);
+    
+    if (editingId) {
+      setManualSubs((prev) => prev.map((s) => s.id === editingId ? {
+        ...s, name: form.name.trim(), amount: amt, cycle: form.cycle, category: form.category, priority: form.priority
+      } : s));
+    } else {
+      const newSub: ManualSub = {
+        id: crypto.randomUUID(),
+        name: form.name.trim(),
+        amount: amt,
+        cycle: form.cycle,
+        category: form.category,
+        priority: form.priority,
+      };
+      setManualSubs((prev) => [newSub, ...prev]);
+      
+      if (editingAutoName) {
+        deleteAutoSub(editingAutoName);
+      }
+    }
     setForm({ name: "", amount: "", cycle: "monthly", category: "Streaming", priority: "medium" });
+    setEditingId(null);
+    setEditingAutoName(null);
     setShowForm(false);
   };
 
@@ -204,7 +235,7 @@ function SubscriptionCreepPage() {
         {/* Add form */}
         {showForm && (
           <div className="border-b border-border bg-muted/30 px-6 py-6 space-y-4">
-            <h3 className="text-sm font-bold text-foreground">New Subscription</h3>
+            <h3 className="text-sm font-bold text-foreground">{(editingId || editingAutoName) ? "Edit Subscription" : "New Subscription"}</h3>
 
             {/* Name with datalist */}
             <div className="grid gap-4 sm:grid-cols-2">
@@ -308,10 +339,11 @@ function SubscriptionCreepPage() {
                 onClick={addSub}
                 className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground shadow-glow hover:scale-[1.02] transition-transform"
               >
-                <Plus className="h-4 w-4" /> Add Subscription
+                {(editingId || editingAutoName) ? <CheckCircle className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {(editingId || editingAutoName) ? "Save Changes" : "Add Subscription"}
               </button>
               <button
-                onClick={() => { setShowForm(false); setFormError(""); }}
+                onClick={() => { setShowForm(false); setFormError(""); setEditingId(null); setEditingAutoName(null); }}
                 className="rounded-full border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors"
               >
                 Cancel
@@ -348,6 +380,7 @@ function SubscriptionCreepPage() {
             <ManualSubRow
               key={sub.id}
               sub={sub}
+              onEdit={() => startEdit(sub)}
               onDelete={() => deleteSub(sub.id)}
               onMarkCancelled={() => markCancelled(sub.id)}
             />
@@ -469,8 +502,8 @@ function StatCard({ label, value, sub, color }: {
   );
 }
 
-function ManualSubRow({ sub, onDelete, onMarkCancelled }: {
-  sub: ManualSub; onDelete: () => void; onMarkCancelled: () => void;
+function ManualSubRow({ sub, onEdit, onDelete, onMarkCancelled }: {
+  sub: ManualSub; onEdit: () => void; onDelete: () => void; onMarkCancelled: () => void;
 }) {
   const monthly = Math.round(sub.amount * CYCLE_MULTIPLIER[sub.cycle]);
   return (
@@ -493,6 +526,9 @@ function ManualSubRow({ sub, onDelete, onMarkCancelled }: {
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        <button onClick={onEdit} className="rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+          Edit
+        </button>
         <button onClick={onMarkCancelled}
           className="rounded-lg border border-success/40 bg-success/10 px-2.5 py-1.5 text-[11px] font-semibold text-success hover:bg-success/20 transition-colors">
           ✓ Cancelled

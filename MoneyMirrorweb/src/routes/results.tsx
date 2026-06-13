@@ -52,18 +52,18 @@ function ResultsPage() {
       try {
         const monthlySavings = Math.max(0, income - expenses);
 
-        // Step 1: await doctor first — we need its categories for the twin call
         const d = await analyzeTransactions(transactions, {
           monthly_income: income,
           monthly_savings: monthlySavings,
           current_emergency_fund: savings,
+          month: analysisMonth,
         });
 
         if (cancelled) return;
 
         // Step 2: remaining 3 calls run in parallel, now that d.categories is ready
         const [sub, t, ints] = await Promise.all([
-          detectSubscriptions(transactions),
+          detectSubscriptions(transactions, analysisMonth),
           generateFinancialTwin({
             monthly_income: income,
             monthly_expenses: expenses,
@@ -72,8 +72,9 @@ function ResultsPage() {
             shopping_expense: d.categories?.["Shopping"] ?? 0,
             subscription_expense: d.categories?.["Subscriptions"] ?? 0,
             categories: d.categories ?? {},
+            month: analysisMonth,
           }),
-          generateInterventions({ transactions, monthly_income: income, monthly_expenses: expenses }),
+          generateInterventions({ transactions, monthly_income: income, monthly_expenses: expenses, month: analysisMonth }),
         ]);
 
         if (cancelled) return;

@@ -194,6 +194,14 @@ export function SubscriptionCard({ s }: { s: Subscription }) {
         <Stat label="Annual" value={formatINR(s.annual_cost)} />
         <Stat label="You could save" value={formatINR(s.potential_savings)} highlight />
       </div>
+      {s.action_plan && (
+        <div className="mt-4 border-t border-border pt-3">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-accent mb-1 flex items-center gap-1.5">
+            <span className="text-accent text-sm">💡</span> Action Plan
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">{s.action_plan}</p>
+        </div>
+      )}
     </div>
   );
 }

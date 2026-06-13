@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { formatINR, useAnalysisStore } from "@/lib/analysisStore";
 import { useAuthStore } from "@/lib/authStore";
+import { getAnalysisHistory } from "@/services/api";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -22,12 +23,42 @@ export const Route = createFileRoute("/dashboard")({
 function DashboardPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const { doctor, twin, analysisMonth } = useAnalysisStore();
+  const { doctor, twin, analysisMonth, setAll } = useAnalysisStore();
 
   // Redirect if not logged in
   useEffect(() => {
     if (!user) navigate({ to: "/login" });
   }, [user, navigate]);
+
+  // Auto-fetch latest analysis if not already loaded in store
+  useEffect(() => {
+    if (!user || !user.user_id) return;
+    
+    // Fetch doctor if missing
+    if (!doctor) {
+      getAnalysisHistory(user.user_id, "doctor", 1).then((res) => {
+        if (res.analyses && res.analyses.length > 0) {
+          const latest = res.analyses[0];
+          setAll({
+            doctor: latest.result as any,
+            income: latest.inputs?.monthly_income || 0,
+            expenses: latest.inputs?.monthly_expenses || 0,
+            savings: latest.inputs?.current_savings || 0,
+            analysisMonth: latest.month || new Date(latest.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+          });
+        }
+      }).catch(console.error);
+    }
+    
+    // Fetch twin if missing
+    if (!twin) {
+      getAnalysisHistory(user.user_id, "twin", 1).then((res) => {
+        if (res.analyses && res.analyses.length > 0) {
+          setAll({ twin: res.analyses[0].result as any });
+        }
+      }).catch(console.error);
+    }
+  }, [user, doctor, twin, setAll]);
 
   if (!user) return null;
 

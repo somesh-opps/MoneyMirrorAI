@@ -165,8 +165,8 @@ function AnalyzePage() {
             <h2 className="font-display text-xl font-bold tracking-tight">Transactions</h2>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Enter where you spend your money and how much.{" "}
-            <span className="text-accent font-medium">Or upload a CSV above.</span>
+            Enter where you spend your money and how much you spend <strong>per month</strong>.{" "}
+            <span className="text-accent font-medium">Or upload a monthly CSV above.</span>
           </p>
 
           {/* Month / Year selector */}
@@ -285,7 +285,7 @@ function AnalyzePage() {
                 <div className="flex-1 w-full">
                   {idx === 0 && (
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                      Amount (₹)
+                      Monthly Amount (₹)
                     </label>
                   )}
                   <div className="relative">

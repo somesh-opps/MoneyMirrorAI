@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import {
   Wand2, Sparkles, TrendingUp, TrendingDown, Minus,
   ShieldCheck, AlertTriangle, CreditCard, BarChart3,
-  ArrowRight, ScanLine, CircleDollarSign, Lightbulb,
+  ArrowRight, ScanLine, CircleDollarSign, Lightbulb, History,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/authStore";
 import { useAnalysisStore, formatINR } from "@/lib/analysisStore";
-import { getAnalysisSummary, type AnalysisSummary } from "@/services/api";
+import { getAnalysisSummary, getAnalysisHistory, type AnalysisSummary, type AnalysisHistoryItem } from "@/services/api";
 
 export const Route = createFileRoute("/personalize")({
   head: () => ({
@@ -52,21 +52,63 @@ function trendColor(trend?: string) {
 function PersonalizePage() {
   const navigate  = useNavigate();
   const user      = useAuthStore((s) => s.user);
-  const { doctor, twin, subscriptions, income, expenses, savings, analysisMonth } = useAnalysisStore();
+  const { doctor, twin, subscriptions, income, expenses, savings, analysisMonth, setAll } = useAnalysisStore();
 
   const [historySummary, setHistorySummary] = useState<AnalysisSummary | null>(null);
   const [historyTotal,   setHistoryTotal]   = useState(0);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyList,    setHistoryList]    = useState<AnalysisHistoryItem[]>([]);
 
   useEffect(() => {
     if (!user) { navigate({ to: "/login" }); return; }
     if (!user.user_id) return;
     setHistoryLoading(true);
-    getAnalysisSummary(user.user_id)
-      .then((r) => { setHistorySummary(r.summary); setHistoryTotal(r.total_analyses); })
-      .catch(() => {})
+
+    Promise.all([
+      getAnalysisSummary(user.user_id),
+      getAnalysisHistory(user.user_id, "doctor", 10)
+    ])
+      .then(([summaryRes, historyRes]) => {
+        setHistorySummary(summaryRes.summary);
+        setHistoryTotal(summaryRes.total_analyses);
+        
+        const rawDocs = historyRes.analyses || [];
+        
+        // Deduplicate by month label (keep only the latest run for each month)
+        const docs: typeof rawDocs = [];
+        const seenMonths = new Set();
+        for (const doc of rawDocs) {
+          const monthLabel = doc.month || new Date(doc.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+          if (!seenMonths.has(monthLabel)) {
+            seenMonths.add(monthLabel);
+            docs.push(doc);
+          }
+        }
+        
+        setHistoryList(docs);
+
+        // Auto-load latest analysis if store is empty
+        if (!useAnalysisStore.getState().doctor && docs.length > 0) {
+          const latest = docs[0];
+          setAll({
+            doctor: latest.result as any,
+            income: latest.inputs?.monthly_income || 0,
+            expenses: latest.inputs?.monthly_expenses || 0,
+            savings: latest.inputs?.current_savings || 0,
+            analysisMonth: latest.month || new Date(latest.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+          });
+
+          // Fetch the matching twin logic asynchronously
+          getAnalysisHistory(user.user_id, "twin", 1).then(r => {
+             if (r.analyses && r.analyses[0]) {
+               setAll({ twin: r.analyses[0].result as any });
+             }
+          });
+        }
+      })
+      .catch((err) => console.error(err))
       .finally(() => setHistoryLoading(false));
-  }, [user, navigate]);
+  }, [user, navigate, setAll]);
 
   if (!user) return null;
 
@@ -439,6 +481,50 @@ function PersonalizePage() {
               ) : (
                 <p className="text-sm text-muted-foreground">Run more analyses to see your progress trend.</p>
               )}
+            </div>
+          )}
+
+          {/* ── Row 7: Analysis History ── */}
+          {historyList.length > 0 && (
+            <div className="rounded-3xl border border-border bg-card p-6 shadow-card mt-8">
+              <h2 className="font-display text-lg font-bold mb-4 flex items-center gap-2">
+                <History className="h-5 w-5 text-muted-foreground" /> Analysis History
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {historyList.map(item => (
+                  <button 
+                    key={item.analysis_id}
+                    onClick={() => {
+                      setAll({
+                        doctor: item.result as any,
+                        income: item.inputs?.monthly_income || 0,
+                        expenses: item.inputs?.monthly_expenses || 0,
+                        savings: item.inputs?.current_savings || 0,
+                        analysisMonth: item.month || new Date(item.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+                      });
+                      getAnalysisHistory(user.user_id, "twin", 5).then(r => {
+                         // Find matching twin for this month/year or just latest
+                         const twinMatch = r.analyses?.find(t => t.month === item.month) || r.analyses?.[0];
+                         if (twinMatch) setAll({ twin: twinMatch.result as any });
+                      });
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="flex flex-col items-start justify-center rounded-2xl bg-muted/30 border border-border px-5 py-4 hover:bg-muted/60 transition-colors text-left"
+                  >
+                    <div className="flex w-full items-center justify-between">
+                      <div className="font-bold text-base">
+                        {item.month || new Date(item.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                      </div>
+                      <div className={`font-display text-xl font-bold ${scoreColor((item.result as any).summary?.score || 0)}`}>
+                        {(item.result as any).summary?.score || "N/A"}
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {new Date(item.created_at).toLocaleDateString()} · {(item.result as any).summary?.transactions_count || 0} transactions
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </>

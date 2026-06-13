@@ -15,7 +15,7 @@ import { Navbar, Footer } from "@/components/Navbar";
 import { Toaster } from "sonner";
 import { useAuthStore } from "@/lib/authStore";
 import { AIChatbot } from "@/components/AIChatbot";
-
+import { CalculatorWidget } from "@/components/CalculatorWidget";
 
 /** Sends logged-in users to their dashboard, guests to the landing page. */
 function HomeLink({ label = "Go home", className }: { label?: string; className?: string }) {
@@ -120,6 +120,7 @@ function RootComponent() {
         <Footer />
       </div>
       <Toaster position="top-right" richColors />
+      <CalculatorWidget />
       <AIChatbot />
     </QueryClientProvider>
   );

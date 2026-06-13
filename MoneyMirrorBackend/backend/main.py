@@ -9,8 +9,13 @@ import re
 import os
 import math
 import csv as csv_module
+import json
+import requests
 from datetime import datetime
 from typing import Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import numpy as np
 import pandas as pd
@@ -314,12 +319,17 @@ def detect_subscriptions(payload: TransactionsPayload):
             annual = round(amt * 12, 2)
 
         savings = round(annual * 0.55, 2)   # 55% savings if cancelled
+        
+        name = str(row["description"]).strip()
+        action_plan = f"Cancel {name} if unused, share the account, or downgrade to a basic tier to easily recover ₹{int(savings)}/year."
+        
         subscriptions.append({
-            "name": str(row["description"]),
+            "name": name,
             "monthly_cost": monthly,
             "annual_cost": annual,
             "potential_savings": savings,
             "category": "Entertainment",
+            "action_plan": action_plan,
         })
 
     return {"subscriptions": subscriptions}
@@ -445,6 +455,59 @@ def generate_financial_twin(payload: FinancialTwinPayload):
         current_savings=savings,
     )
 
+    # ── AI Generated Recommendations ──
+    twin_recommendations = [
+        "Reduce overall expenses by 15% to hit the Improved Trajectory.",
+        "Cut subscriptions and dining out by 25% to hit the Best Case Trajectory.",
+        "Maintain financial discipline to earn a 10% bonus on your savings rate.",
+        "Use the AI interventions to identify exact leaks."
+    ]
+
+    prompt = f"""You are a financial advisor AI. Analyze the user's monthly budget:
+- Income: ₹{income}
+- Expenses: ₹{expenses}
+- Current Savings: ₹{savings}
+- Food/Dining: ₹{payload.food_expense}
+- Shopping: ₹{payload.shopping_expense}
+- Subscriptions: ₹{payload.subscription_expense}
+
+Provide exactly 4 concise, highly actionable spending optimization recommendations to help them improve their financial trajectory.
+Be specific to their amounts.
+Respond ONLY with a valid JSON array of exactly 4 strings. No markdown formatting, just the raw JSON array. Example: ["Rec 1", "Rec 2", "Rec 3", "Rec 4"]"""
+
+    groq_keys = [
+        os.getenv("GROQ_API_KEY_1"),
+        os.getenv("GROQ_API_KEY_2"),
+        os.getenv("GROQ_API_KEY_3"),
+        os.getenv("GROK_API_KEY_1")
+    ]
+    groq_keys = [k for k in groq_keys if k]
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+    for key in groq_keys:
+        try:
+            res = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.4,
+                },
+                timeout=12
+            )
+            if res.status_code == 200:
+                data = res.json()
+                content = data["choices"][0]["message"]["content"].strip()
+                if content.startswith("```"):
+                    content = re.sub(r"^```(json)?|```$", "", content).strip()
+                recs = json.loads(content)
+                if isinstance(recs, list) and len(recs) >= 1:
+                    twin_recommendations = [str(r) for r in recs[:4]]
+                    break
+        except Exception:
+            continue
+
     return {
         "current_path": result["current_path"],
         "optimized_path": result["improved_path"],
@@ -465,12 +528,7 @@ def generate_financial_twin(payload: FinancialTwinPayload):
             "average_case": result["improved_year_end"],
             "best_case": result["best_year_end"]
         },
-        "twin_recommendations": [
-            "Reduce overall expenses by 15% to hit the Improved Trajectory.",
-            "Cut subscriptions and dining out by 25% to hit the Best Case Trajectory.",
-            "Maintain financial discipline to earn a 10% bonus on your savings rate.",
-            "Use the AI interventions to identify exact leaks."
-        ],
+        "twin_recommendations": twin_recommendations,
         "rule_502030": None
     }
 
@@ -495,84 +553,106 @@ def interventions(payload: InterventionsPayload):
     expenses = max(0.0, payload.monthly_expenses)
     monthly_save = income - expenses
 
-    actions: list[dict] = []
+    # ── AI Generated Interventions ──
+    prompt = f"""You are a financial planning AI. The user's monthly profile is:
+- Income: ₹{income}
+- Expenses: ₹{expenses}
+- Savings generated this month: ₹{monthly_save}
+- Exact Category breakdown: {json.dumps(cats)}
 
-    # 1. Subscription overload
-    sub_spend = float(cats.get("Subscriptions", 0))
-    if sub_spend > 300:
-        cancel_pct = 0.60
-        savings = round(sub_spend * cancel_pct * 12)
+Based on these EXACT amounts, generate between 3 and 5 concrete, highly specific financial interventions.
+Each intervention MUST follow this JSON schema:
+{{
+  "priority": "high" | "medium" | "low",
+  "title": "Short title of the action",
+  "action": "A specific sentence explaining exactly what to do and exactly how much they will save. Use the exact numbers provided.",
+  "savings_impact": <integer representing annual financial gain in ₹, e.g. 15000>,
+  "timeline": "e.g., 'This week', 'Next 30 days', 'Ongoing'",
+  "category": "e.g., 'Subscriptions', 'Food', 'Investments', 'Safety Net'"
+}}
+
+Return ONLY a valid JSON array of these objects. No markdown formatting, no explanations, just the raw array."""
+
+    groq_keys = [
+        os.getenv("GROQ_API_KEY_1"),
+        os.getenv("GROQ_API_KEY_2"),
+        os.getenv("GROQ_API_KEY_3"),
+        os.getenv("GROK_API_KEY_1")
+    ]
+    groq_keys = [k for k in groq_keys if k]
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    
+    actions = []
+    
+    for key in groq_keys:
+        try:
+            res = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.4,
+                },
+                timeout=15
+            )
+            if res.status_code == 200:
+                data = res.json()
+                content = data["choices"][0]["message"]["content"].strip()
+                if content.startswith("```"):
+                    content = re.sub(r"^```(json)?|```$", "", content).strip()
+                recs = json.loads(content)
+                if isinstance(recs, list) and len(recs) > 0:
+                    for r in recs:
+                        if "priority" in r and "title" in r and "action" in r and "savings_impact" in r:
+                            actions.append({
+                                "priority": str(r.get("priority", "medium")).lower(),
+                                "title": str(r.get("title", "")),
+                                "action": str(r.get("action", "")),
+                                "savings_impact": int(r.get("savings_impact", 0)),
+                                "timeline": str(r.get("timeline", "Ongoing")),
+                                "category": str(r.get("category", "General")),
+                            })
+                    if len(actions) > 0:
+                        break
+        except Exception:
+            continue
+
+    # Fallback if AI fails
+    if not actions:
+        sub_spend = float(cats.get("Subscriptions", 0))
+        if sub_spend > 300:
+            savings = round(sub_spend * 0.60 * 12)
+            actions.append({
+                "priority": "high", "title": "Cancel Redundant Subscriptions",
+                "action": f"You're spending ₹{int(sub_spend):,}/mo. Audit and cancel at least 60% to save ₹{savings:,}/year.",
+                "savings_impact": savings, "timeline": "This week", "category": "Subscriptions"
+            })
+            
+        food_spend = float(cats.get("Food Delivery", 0))
+        if food_spend > 800:
+            savings = round(food_spend * 0.50 * 12)
+            actions.append({
+                "priority": "high", "title": "Reduce Food Delivery by 50%",
+                "action": f"₹{int(food_spend):,}/mo detected. Meal-prep 3 days/week to save ₹{savings:,}/year.",
+                "savings_impact": savings, "timeline": "This month", "category": "Food"
+            })
+            
+        if monthly_save > 2000:
+            sip = round(monthly_save * 0.40)
+            proj = int(sip * 12 * ((1.09 ** 10 - 1) / 0.09) * 1.09)
+            actions.append({
+                "priority": "medium", "title": "Start a Monthly SIP in Index Funds",
+                "action": f"Invest ₹{sip:,}/mo. Estimated value in 10 years: ₹{proj:,}.",
+                "savings_impact": proj, "timeline": "Next 30 days", "category": "Investments"
+            })
+            
+        emergency = round(expenses * 6)
         actions.append({
-            "priority": "high",
-            "title": "Cancel Redundant Subscriptions",
-            "action": f"You're spending ₹{int(sub_spend):,}/mo on subscriptions. Audit and cancel at least 60% to save ₹{savings:,}/year.",
-            "savings_impact": savings,
-            "timeline": "This week",
-            "category": "Subscriptions",
+            "priority": "low", "title": "Build a 6-Month Emergency Fund",
+            "action": f"Target is ₹{emergency:,} (6× monthly expenses). Park it in a liquid mutual fund or FD.",
+            "savings_impact": 0, "timeline": "6–12 months", "category": "Safety Net"
         })
-
-    # 2. Food delivery reduction
-    food_spend = float(cats.get("Food Delivery", 0))
-    if food_spend > 800:
-        savings = round(food_spend * 0.50 * 12)
-        actions.append({
-            "priority": "high",
-            "title": "Reduce Food Delivery by 50%",
-            "action": f"₹{int(food_spend):,}/mo on food delivery detected. Meal-prep 3 days/week — saves ₹{savings:,}/year.",
-            "savings_impact": savings,
-            "timeline": "This month",
-            "category": "Food",
-        })
-
-    # 3. Shopping impulse control
-    shop_spend = float(cats.get("Shopping", 0))
-    if shop_spend > 1500:
-        savings = round(shop_spend * 0.40 * 12)
-        actions.append({
-            "priority": "medium",
-            "title": "Apply the 48-Hour Rule for Shopping",
-            "action": f"₹{int(shop_spend):,}/mo in shopping. Wait 48h before any non-essential purchase — target saving ₹{savings:,}/year.",
-            "savings_impact": savings,
-            "timeline": "Ongoing",
-            "category": "Shopping",
-        })
-
-    # 4. SIP investment
-    if monthly_save > 2000:
-        sip_amount = round(monthly_save * 0.40)
-        projected_10y = int(sip_amount * 12 * ((1.09 ** 10 - 1) / 0.09) * 1.09)
-        actions.append({
-            "priority": "medium",
-            "title": "Start a Monthly SIP in Index Funds",
-            "action": f"Invest ₹{sip_amount:,}/mo in a Nifty 50 index fund. Estimated value in 10 years: ₹{projected_10y:,}.",
-            "savings_impact": projected_10y,
-            "timeline": "Next 30 days",
-            "category": "Investments",
-        })
-
-    # 5. Transport optimisation
-    transport_spend = float(cats.get("Transport", 0))
-    if transport_spend > 2000:
-        savings = round(transport_spend * 0.30 * 12)
-        actions.append({
-            "priority": "low",
-            "title": "Optimise Daily Commute",
-            "action": f"₹{int(transport_spend):,}/mo on transport. Switch 2 days/week to public transit or carpooling — saves ₹{savings:,}/year.",
-            "savings_impact": savings,
-            "timeline": "Next 2 weeks",
-            "category": "Transport",
-        })
-
-    # 6. Emergency fund — always recommended
-    emergency_target = round(expenses * 6)
-    actions.append({
-        "priority": "low",
-        "title": "Build a 6-Month Emergency Fund",
-        "action": f"Your emergency fund target is ₹{emergency_target:,} (6× monthly expenses). Park it in a liquid mutual fund or FD.",
-        "savings_impact": 0,
-        "timeline": "6–12 months",
-        "category": "Safety Net",
-    })
 
     # Sort by priority weight
     priority_order = {"high": 0, "medium": 1, "low": 2}
@@ -585,73 +665,128 @@ def interventions(payload: InterventionsPayload):
 # /scam-shield
 # ─────────────────────────────────────────────
 
-SCAM_SIGNALS: list[tuple[str, int, str]] = [
-    (r"kyc|aadhaar|pan card|voter id", 25, "Mentions KYC / Aadhaar / PAN — a top phishing lure."),
-    (r"click|link|http|bit\.ly|tinyurl|t\.me|short\.url", 25, "Contains a suspicious link or call-to-click."),
-    (r"urgent|immediately|today|expires|expire|24 hours?|2 hours?|last chance|deadline", 20, "Uses urgency or fear to force quick action."),
-    (r"\botp\b|password|cvv|pin|secret|credentials", 25, "Asks for OTP, password, CVV, or PIN — never share these."),
-    (r"lottery|prize|won|winner|congratulations|cashback|free money|reward|gift card|voucher", 20, "Promises a prize, reward, or unexpected money."),
-    (r"bank|account|suspend|block|frozen|deactivate|rbi|sebi|income tax", 18, "Impersonates a bank/authority or threatens account action."),
-    (r"whatsapp|telegram|investment|crypto|trading|forex|binary|returns guaranteed", 18, "Mentions chat-app investment / crypto — common scam vectors."),
-    (r"job offer|work from home|part time|earn \d+k|per day earning", 15, "Fake job or work-from-home earnings trap."),
-    (r"dear customer|dear user|dear member|valued customer", 10, "Generic salutation — often used in bulk scam messages."),
-    (r"verify now|confirm now|update now|validate|authenticate", 12, "Urges immediate verification / account update."),
-]
-
-
 @app.post("/scam-shield")
 def scam_shield(payload: ScamShieldPayload):
     """
-    Rule-based scam analysis using numpy-weighted scoring.
+    Hybrid Scam Detection
+    Layer 1: Rule-Based Detection
+    Layer 2: Groq/Gemini AI Analysis
+    Layer 3: Risk Score Generation
     """
     message = payload.message.strip()
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
 
     m_lower = message.lower()
-    triggered: list[tuple[int, str]] = []
 
-    for pattern, weight, reason in SCAM_SIGNALS:
-        if re.search(pattern, m_lower):
-            triggered.append((weight, reason))
+    # ── Layer 1: Rule-Based Detection ──
+    SCAM_KEYWORDS = {
+        "kyc": 15, "urgent": 20, "immediately": 20, "otp": 30, "verify": 10,
+        "reward": 20, "lottery": 25, "suspended": 15, "blocked": 15, "click": 10,
+        "expire": 20, "warning": 20
+    }
 
-    # Numpy weighted sum
-    weights = np.array([w for w, _ in triggered], dtype=float) if triggered else np.array([0.0])
-    base_score = float(np.sum(weights))
+    rule_risk = 0
+    rule_reasons = []
 
-    # Baseline for non-empty messages
-    base_score += 8 if len(message) > 20 else 3
+    for word, score in SCAM_KEYWORDS.items():
+        if word in m_lower:
+            rule_risk += score
+            rule_reasons.append(f"Contains keyword: '{word}'")
 
-    # Normalise to 0-98
-    risk_score = int(np.clip(np.round(base_score), 0, 98))
+    urls = re.findall(r'https?://\S+', message)
+    if urls:
+        rule_risk += 20
+        rule_reasons.append("Contains suspicious link")
 
-    reasons = [r for _, r in triggered]
+    SUSPICIOUS_DOMAINS = [".xyz", ".top", ".click", ".live", ".vip", "bit.ly", "tinyurl"]
+    for domain in SUSPICIOUS_DOMAINS:
+        if domain in m_lower:
+            rule_risk += 20
+            rule_reasons.append(f"Suspicious domain ({domain})")
 
-    if risk_score >= 70:
+    rule_risk = min(rule_risk, 100)
+
+    # ── Layer 2: Groq AI Analysis ──
+    prompt = f"""You are a cybersecurity fraud analyst.
+Analyze this message:
+{message}
+
+Return exactly this JSON format:
+{{
+  "scam_probability": <number 0-100>,
+  "reasons": ["<reason1>", "<reason2>"],
+  "advice": "<string>"
+}}"""
+
+    ai_score = 0
+    ai_reasons = []
+    ai_advice = ""
+
+    groq_keys = [
+        os.getenv("GROQ_API_KEY_1"),
+        os.getenv("GROQ_API_KEY_2"),
+        os.getenv("GROQ_API_KEY_3"),
+        os.getenv("GROK_API_KEY_1")
+    ]
+    groq_keys = [k for k in groq_keys if k]
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+    success = False
+    for key in groq_keys:
+        try:
+            res = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0.1,
+                },
+                timeout=10
+            )
+            if res.status_code == 200:
+                data = res.json()
+                content = json.loads(data["choices"][0]["message"]["content"])
+                ai_score = int(content.get("scam_probability", 0))
+                ai_reasons = content.get("reasons", [])
+                ai_advice = content.get("advice", "")
+                success = True
+                break
+        except Exception as e:
+            continue
+
+    # Fallback if AI fails completely
+    if not success:
+        ai_score = rule_risk
+        ai_advice = "Do NOT click the link." if rule_risk >= 50 else "Always verify unexpected messages."
+
+    # ── Layer 3: Risk Score Generation ──
+    final_score = int((rule_risk * 0.4) + (ai_score * 0.6))
+    final_score = min(max(final_score, 0), 100)
+
+    # Combine unique reasons
+    combined_reasons = []
+    for r in rule_reasons + ai_reasons:
+        if r not in combined_reasons:
+            combined_reasons.append(r)
+
+    if final_score >= 70:
         verdict = "dangerous"
-        recommendation = (
-            "⚠️ HIGH RISK — Do NOT click any link or respond. "
-            "Delete the message immediately and report it to the National Cyber Crime Portal "
-            "(cybercrime.gov.in) or call 1930."
-        )
-    elif risk_score >= 40:
+        recommendation = ai_advice if success else "⚠️ HIGH RISK — Do NOT click any link or respond."
+    elif final_score >= 40:
         verdict = "suspicious"
-        recommendation = (
-            "Treat with caution. Verify the sender through official channels "
-            "(call the bank or organisation's published helpline) before taking any action."
-        )
+        recommendation = ai_advice if success else "Treat with caution. Verify the sender through official channels."
     else:
         verdict = "safe"
-        recommendation = (
-            "Message appears low-risk, but always confirm requests for money or "
-            "credentials directly with the source — never via a link in the message."
-        )
+        recommendation = ai_advice if success else "This message appears safe, but always remain vigilant."
 
     return {
-        "risk_score": risk_score,
-        "reasons": reasons,
+        "risk_score": final_score,
+        "reasons": combined_reasons[:6], # Show top 6 reasons
         "recommendation": recommendation,
-        "verdict": verdict,
+        "verdict": verdict
     }
 
 
