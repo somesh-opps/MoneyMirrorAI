@@ -137,10 +137,10 @@ def _client_ip() -> str:
 # ──────────────────────────────────────────────
 # DATABASE
 # ──────────────────────────────────────────────
-_MONGO_URI = os.getenv(
-    "MONGODB_CONNECTION_STRING",
-    "mongodb+srv://someshkumarsahoo28_db_user:lRGYsixqx6boPbKW@bitdata.v5veckh.mongodb.net/",
-)
+_MONGO_URI = os.getenv("MONGODB_CONNECTION_STRING")
+if not _MONGO_URI:
+    raise ValueError("MONGODB_CONNECTION_STRING is missing in environment variables.")
+
 _MONGO_DB = os.getenv("MONGODB_DB_NAME", "moneymirror_db")
 
 try:
