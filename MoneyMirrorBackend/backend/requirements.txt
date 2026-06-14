@@ -24,4 +24,5 @@ Werkzeug>=3.0.0
 requests>=2.31.0
 
 # Voice / Audio
-faster-whisper>=1.0.0gunicorn>=21.2.0
+faster-whisper>=1.0.0
+gunicorn>=21.2.0
