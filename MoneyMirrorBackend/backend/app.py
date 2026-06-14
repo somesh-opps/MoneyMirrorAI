@@ -1305,17 +1305,11 @@ def ai_chat():
 # ──────────────────────────────────────────────
 from faster_whisper import WhisperModel
 import tempfile
-
-# Load the whisper model once on startup
-# "tiny.en" is extremely fast and usually good enough for voice commands.
-# If you need better accuracy, change to "base.en" or "small.en".
-print("🎙️  Loading faster-whisper model (tiny.en)...")
-
 import warnings
+import gc
+
 warnings.filterwarnings("ignore", module="huggingface_hub")
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
-
-whisper_model = WhisperModel("tiny.en", device="cpu", compute_type="int8")
 
 @app.route("/api/chat/voice", methods=["POST"])
 def voice_input():
@@ -1332,12 +1326,18 @@ def voice_input():
         os.close(fd)
         audio_file.save(tmp_path)
 
-        # Transcribe
-        segments, info = whisper_model.transcribe(tmp_path, beam_size=5)
+        # Transcribe: load model per-request to avoid memory leak / OOM on Render
+        print("🎙️  Loading faster-whisper model (tiny.en)...")
+        model = WhisperModel("tiny.en", device="cpu", compute_type="int8")
+        segments, info = model.transcribe(tmp_path, beam_size=5)
         text = " ".join([segment.text for segment in segments]).strip()
 
         # Clean up temp file
         os.remove(tmp_path)
+        
+        # Free memory explicitly
+        del model
+        gc.collect()
 
         return jsonify({"success": True, "text": text})
 
