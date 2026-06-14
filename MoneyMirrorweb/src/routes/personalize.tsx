@@ -67,7 +67,7 @@ function PersonalizePage() {
 
     Promise.all([
       getAnalysisSummary(user.user_id),
-      getAnalysisHistory(user.user_id, "doctor", 10)
+      getAnalysisHistory(user.user_id, "doctor", 50)
     ])
       .then(([summaryRes, historyRes]) => {
         setHistorySummary(summaryRes.summary);
@@ -75,13 +75,17 @@ function PersonalizePage() {
         
         const rawDocs = historyRes.analyses || [];
         
-        // Deduplicate by month label (keep only the latest run for each month)
+        // Deduplicate by exact score and transaction count to prevent identical runs side-by-side
         const docs: typeof rawDocs = [];
-        const seenMonths = new Set();
+        const seenSignatures = new Set();
         for (const doc of rawDocs) {
           const monthLabel = doc.month || new Date(doc.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-          if (!seenMonths.has(monthLabel)) {
-            seenMonths.add(monthLabel);
+          const score = (doc.result as any)?.summary?.score || 0;
+          const txCount = (doc.result as any)?.summary?.transactions_count || 0;
+          const signature = `${monthLabel}-${score}-${txCount}`;
+          
+          if (!seenSignatures.has(signature)) {
+            seenSignatures.add(signature);
             docs.push(doc);
           }
         }
@@ -519,7 +523,7 @@ function PersonalizePage() {
                   >
                     <div className="flex w-full items-center justify-between">
                       <div className="font-bold text-base">
-                        {item.month || new Date(item.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                        {item.month ? `${item.month} (${new Date(item.created_at).toLocaleDateString()})` : new Date(item.created_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
                       </div>
                       <div className={`font-display text-xl font-bold ${scoreColor((item.result as any).summary?.score || 0)}`}>
                         {(item.result as any).summary?.score || "N/A"}

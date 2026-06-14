@@ -36,7 +36,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+      <div className="mx-auto flex h-16 max-w-[85rem] items-center justify-between px-6">
 
         {/* Logo */}
         <Link
@@ -192,7 +192,7 @@ export function Navbar() {
 export function Footer() {
   return (
     <footer className="border-t border-border/60 bg-card/40">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-8 text-xs text-muted-foreground md:flex-row">
+      <div className="mx-auto flex max-w-[85rem] flex-col items-center justify-between gap-3 px-6 py-8 text-xs text-muted-foreground md:flex-row">
         <span>© {new Date().getFullYear()} MoneyMirror AI — Your financial future, explained in 60 seconds.</span>
         <span>Built for the modern Indian saver.</span>
       </div>
