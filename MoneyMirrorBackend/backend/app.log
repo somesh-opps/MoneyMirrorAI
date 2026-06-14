@@ -74,3 +74,9 @@
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 117-959-825
+ * Detected change in '/run/media/someshsahoo/Dump/MoneyMirror/MoneyMirrorBackend/backend/app.py', reloading
+✅ Connected to MongoDB successfully
+🤖 AI keys loaded — Groq: 3, Gemini: 2
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 117-959-825
