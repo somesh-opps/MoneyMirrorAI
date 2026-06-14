@@ -101,9 +101,11 @@ export function AIChatbot() {
 
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach(track => track.stop());
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const actualMimeType = mediaRecorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: actualMimeType });
+        const ext = actualMimeType.includes("mp4") ? "mp4" : "webm";
         const formData = new FormData();
-        formData.append("audio", audioBlob, "voice.webm");
+        formData.append("audio", audioBlob, `voice.${ext}`);
 
         setLoading(true);
         try {

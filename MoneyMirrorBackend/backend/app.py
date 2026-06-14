@@ -17,6 +17,11 @@ from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+# Add Render static ffmpeg to PATH if it exists
+_ffmpeg_path = os.path.join(os.environ.get("HOME", ""), "ffmpeg")
+if os.path.exists(_ffmpeg_path) and _ffmpeg_path not in os.environ.get("PATH", ""):
+    os.environ["PATH"] += os.pathsep + _ffmpeg_path
+
 import requests as http_requests
 from flask import Flask, request, jsonify, send_from_directory, g
 from flask_cors import CORS
