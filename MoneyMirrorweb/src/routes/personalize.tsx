@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/lib/authStore";
 import { useAnalysisStore, formatINR } from "@/lib/analysisStore";
-import { getAnalysisSummary, getAnalysisHistory, type AnalysisSummary, type AnalysisHistoryItem } from "@/services/api";
+import { getAnalysisSummary, getAnalysisHistory, getUserSubscriptions, type AnalysisSummary, type AnalysisHistoryItem } from "@/services/api";
 import { EmergencyReadiness } from "@/components/ResultComponents";
 
 export const Route = createFileRoute("/personalize")({
@@ -67,11 +67,15 @@ function PersonalizePage() {
 
     Promise.all([
       getAnalysisSummary(user.user_id),
-      getAnalysisHistory(user.user_id, "doctor", 50)
+      getAnalysisHistory(user.user_id, "doctor", 50),
+      getUserSubscriptions(user.user_id, "active")
     ])
-      .then(([summaryRes, historyRes]) => {
+      .then(([summaryRes, historyRes, subsRes]) => {
         setHistorySummary(summaryRes.summary);
         setHistoryTotal(summaryRes.total_analyses);
+        if (subsRes.success && subsRes.subscriptions) {
+          setAll({ subscriptions: subsRes.subscriptions as any });
+        }
         
         const rawDocs = historyRes.analyses || [];
         
@@ -104,7 +108,7 @@ function PersonalizePage() {
           });
 
           // Fetch the matching twin logic asynchronously
-          getAnalysisHistory(user.user_id, "twin", 1).then(r => {
+          getAnalysisHistory(user.user_id!, "twin", 1).then(r => {
              if (r.analyses && r.analyses[0]) {
                setAll({ twin: r.analyses[0].result as any });
              }
@@ -125,7 +129,7 @@ function PersonalizePage() {
   const totalSpent     = doctor?.summary?.total_spent ?? 0;
   const txCount        = doctor?.summary?.transactions_count ?? 0;
   const categories     = doctor?.categories ?? {};
-  const insights       = doctor?.doctor_insights ?? {};
+  const insights       = (doctor?.summary as any) ?? {};
   const savingsRate    = insights?.savings_rate ?? 0;
   const expenseRatio   = insights?.expense_ratio ?? 0;
   const topCategories  = Object.entries(categories)
@@ -310,7 +314,8 @@ function PersonalizePage() {
                 <h2 className="font-display text-lg font-bold mb-4">Top Spending Categories</h2>
                 <div className="space-y-3">
                   {topCategories.map(([cat, amt], i) => {
-                    const pct = totalSpent > 0 ? Math.round((amt as number) / totalSpent * 100) : 0;
+                    const baseForPct = Math.max(totalSpent, expenses || 0);
+                    const pct = baseForPct > 0 ? Math.round((amt as number) / baseForPct * 100) : 0;
                     const colors = ["bg-chart-1","bg-chart-2","bg-chart-3","bg-chart-4","bg-accent","bg-success"];
                     return (
                       <div key={cat}>
@@ -512,7 +517,7 @@ function PersonalizePage() {
                         savings: item.inputs?.current_savings || 0,
                         analysisMonth: item.month || new Date(item.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
                       });
-                      getAnalysisHistory(user.user_id, "twin", 5).then(r => {
+                      getAnalysisHistory(user.user_id!, "twin", 5).then(r => {
                          // Find matching twin for this month/year or just latest
                          const twinMatch = r.analyses?.find(t => t.month === item.month) || r.analyses?.[0];
                          if (twinMatch) setAll({ twin: twinMatch.result as any });

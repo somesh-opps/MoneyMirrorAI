@@ -25,9 +25,9 @@ export function Navbar() {
 
   const handleLogout = () => {
     clearUser();      // clears localStorage + Zustand state → Navbar re-renders instantly
-    resetAnalysis();  // wipe stale analysis data
+    useAnalysisStore.getState().reset();
     setDropOpen(false);
-    navigate({ to: "/" });
+    navigate({ to: "/login" });
   };
 
   const linkCls =

@@ -853,7 +853,7 @@ def get_analysis_summary():
 
     scores = [d["result"].get("summary", {}).get("score", 0) for d in docs if "result" in d]
     savings_rates = [
-        d["result"].get("doctor_insights", {}).get("savings_rate", 0)
+        d["result"].get("summary", {}).get("savings_rate", 0)
         for d in docs if "result" in d
     ]
 

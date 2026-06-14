@@ -1,0 +1,52 @@
+✅ Connected to MongoDB successfully
+🤖 AI keys loaded — Groq: 3, Gemini: 2
+🎙️  Loading faster-whisper model (tiny.en)...
+ * Serving Flask app 'app'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8005
+ * Running on http://192.168.1.4:8005
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 117-959-825
+127.0.0.1 - - [14/Jun/2026 11:16:08] "POST /detect-subscriptions HTTP/1.1" 200 -
+ * Detected change in '/run/media/someshsahoo/Dump/MoneyMirror/MoneyMirrorBackend/backend/app.py', reloading
+✅ Connected to MongoDB successfully
+🤖 AI keys loaded — Groq: 3, Gemini: 2
+🎙️  Loading faster-whisper model (tiny.en)...
+[analysis_store] Saved subscriptions for user test_user_1
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 117-959-825
+127.0.0.1 - - [14/Jun/2026 11:19:17] "GET /api/subscriptions?user_id=USR-1781410338-8982&status=active HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:19:18] "GET /api/analyses/summary?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:19:18] "GET /api/analyses?user_id=USR-1781410338-8982&type=doctor&limit=50&skip=0 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:19:41] "GET /api/analyses/summary?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:19:41] "GET /api/analyses/summary?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:19:41] "GET /api/analyses?user_id=USR-1781410338-8982&type=doctor&limit=50&skip=0 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:19:41] "GET /api/subscriptions?user_id=USR-1781410338-8982&status=active HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:19:41] "GET /api/subscriptions?user_id=USR-1781410338-8982&status=active HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:19:41] "GET /api/analyses?user_id=USR-1781410338-8982&type=doctor&limit=50&skip=0 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:19:41] "GET /api/analyses?user_id=USR-1781410338-8982&type=twin&limit=1&skip=0 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:20:31] "GET /api/subscriptions?user_id=USR-1781410338-8982&status=active HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:20:31] "GET /api/analyses/summary?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:20:31] "GET /api/analyses?user_id=USR-1781410338-8982&type=doctor&limit=50&skip=0 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:24] "GET /api/subscriptions?user_id=USR-1781410338-8982&status=active HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:24] "GET /api/analyses/summary?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:24] "GET /api/analyses?user_id=USR-1781410338-8982&type=doctor&limit=50&skip=0 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:54] "GET /api/subscriptions?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:54] "GET /api/subscriptions?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:54] "GET /api/subscriptions?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:54] "GET /api/subscriptions?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:55] "GET /api/analyses/summary?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:55] "GET /api/subscriptions?user_id=USR-1781410338-8982&status=active HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:55] "GET /api/analyses/summary?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:55] "GET /api/analyses?user_id=USR-1781410338-8982&type=doctor&limit=50&skip=0 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:55] "GET /api/analyses?user_id=USR-1781410338-8982&type=doctor&limit=50&skip=0 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:56] "GET /api/subscriptions?user_id=USR-1781410338-8982&status=active HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:58] "GET /api/analyses?user_id=USR-1781410338-8982&limit=20&skip=0 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:58] "GET /api/analyses?user_id=USR-1781410338-8982&limit=20&skip=0 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:58] "GET /api/user/stats?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:21:58] "GET /api/user/stats?user_id=USR-1781410338-8982 HTTP/1.1" 200 -

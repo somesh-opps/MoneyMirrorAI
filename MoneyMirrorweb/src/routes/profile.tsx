@@ -20,7 +20,6 @@ function ProfilePage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const clearUser = useAuthStore((s) => s.clearUser);
-  const resetAnalysis = useAnalysisStore((s) => s.reset);
 
   useEffect(() => {
     if (!user) navigate({ to: "/login" });
@@ -28,8 +27,8 @@ function ProfilePage() {
 
   const handleLogout = () => {
     clearUser();
-    resetAnalysis();
-    navigate({ to: "/" });
+    useAnalysisStore.getState().reset();
+    navigate({ to: "/login" });
   };
 
   if (!user) return null;
