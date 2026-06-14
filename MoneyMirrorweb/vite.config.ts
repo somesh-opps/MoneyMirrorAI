@@ -17,6 +17,7 @@ const lovableConfig = defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  nitro: true,
 });
 
 export default async (env: any) => {
