@@ -48,8 +48,9 @@ class TransactionsPayload(BaseModel):
     transactions: list[Transaction]
     # Financial doctor inputs (optional — fallback to 0 if not provided)
     monthly_income: float = 0.0
+    monthly_expenses: float = 0.0   # user's declared monthly expense figure
     monthly_savings: float = 0.0
-    current_emergency_fund: float = 0.0
+    current_emergency_fund: float = 0.0  # user's current savings / emergency fund balance
 
 
 class FinancialTwinPayload(BaseModel):
@@ -115,6 +116,7 @@ def _categorize_series(descriptions: pd.Series) -> pd.Series:
 
 def financial_doctor(
     monthly_income: float,
+    monthly_expenses: float,
     monthly_savings: float,
     current_emergency_fund: float,
     expenses: list[dict],
@@ -126,39 +128,51 @@ def financial_doctor(
       - emergency fund   (40 pts max)
     Also returns insights, recommendations, and annual savings projections.
     """
-    total_expenses = sum(item["amount"] for item in expenses)
+    total_tx_amount = sum(item["amount"] for item in expenses)
 
-    savings_rate = (monthly_savings / monthly_income * 100) if monthly_income > 0 else 0
-    expense_ratio = (total_expenses / monthly_income * 100) if monthly_income > 0 else 0
+    # Use declared monthly figures; fall back to transaction totals
+    effective_income   = monthly_income  if monthly_income  > 0 else 0
+    effective_expenses = monthly_expenses if monthly_expenses > 0 else total_tx_amount
+    effective_savings  = monthly_savings if monthly_savings > 0 else max(0, effective_income - effective_expenses)
 
-    # Savings Score
-    if savings_rate >= 30:
+    savings_rate  = (effective_savings  / effective_income   * 100) if effective_income  > 0 else 0
+    expense_ratio = (effective_expenses / effective_income   * 100) if effective_income  > 0 else 100
+
+    # ── Savings Score (30 pts) ──────────────────────────────────
+    if savings_rate >= 25:
         savings_points = 30
-    elif savings_rate >= 20:
-        savings_points = 25
+    elif savings_rate >= 15:
+        savings_points = 22
     elif savings_rate >= 10:
         savings_points = 15
     elif savings_rate >= 5:
-        savings_points = 10
+        savings_points = 8
     else:
         savings_points = 0
 
-    # Expense Score
-    if expense_ratio < 50:
+    # ── Expense Score (30 pts) ──────────────────────────────────
+    if expense_ratio <= 50:
         expense_points = 30
-    elif expense_ratio < 70:
-        expense_points = 20
-    elif expense_ratio < 90:
-        expense_points = 10
+    elif expense_ratio <= 65:
+        expense_points = 22
+    elif expense_ratio <= 80:
+        expense_points = 15
+    elif expense_ratio <= 95:
+        expense_points = 8
     else:
         expense_points = 0
 
-    # Emergency Fund Score
-    months_covered = (current_emergency_fund / total_expenses) if total_expenses > 0 else 0
+    # ── Emergency Fund Score (40 pts) ───────────────────────────
+    # Use monthly_expenses (not raw tx total) as the monthly burn rate
+    monthly_burn = effective_expenses if effective_expenses > 0 else max(total_tx_amount, 1)
+    months_covered = current_emergency_fund / monthly_burn if monthly_burn > 0 else 0
+
     if months_covered >= 6:
         emergency_points = 40
-    elif months_covered >= 3:
-        emergency_points = 25
+    elif months_covered >= 4:
+        emergency_points = 30
+    elif months_covered >= 2:
+        emergency_points = 18
     elif months_covered >= 1:
         emergency_points = 10
     else:
@@ -166,14 +180,15 @@ def financial_doctor(
 
     financial_score = min(savings_points + expense_points + emergency_points, 100)
 
-    if financial_score >= 80:
+    # Status labels — aligned with frontend (ResultComponents.tsx)
+    if financial_score >= 75:
         status = "Excellent"
-    elif financial_score >= 60:
-        status = "Good"
-    elif financial_score >= 40:
-        status = "Average"
+    elif financial_score >= 55:
+        status = "Healthy"
+    elif financial_score >= 35:
+        status = "Needs work"
     else:
-        status = "Risky"
+        status = "Critical"
 
     # Category breakdown
     category_breakdown: dict[str, float] = {}
@@ -188,30 +203,33 @@ def financial_doctor(
     shopping = category_breakdown.get("Shopping", 0)
     subscriptions = category_breakdown.get("Subscriptions", 0)
 
-    if monthly_income > 0 and food > monthly_income * 0.30:
+    if effective_income > 0 and food > effective_income * 0.30:
         insights.append("Food spending exceeds 30% of income.")
         recommendations.append("Reduce food expenses by 10-15%.")
 
-    if monthly_income > 0 and shopping > monthly_income * 0.20:
+    if effective_income > 0 and shopping > effective_income * 0.20:
         insights.append("Shopping expenses are unusually high.")
         recommendations.append("Reduce discretionary shopping.")
 
-    if monthly_income > 0 and subscriptions > monthly_income * 0.05:
+    if effective_income > 0 and subscriptions > effective_income * 0.05:
         insights.append("Subscription spending is high.")
         recommendations.append("Review unused subscriptions.")
 
     if savings_rate < 20:
-        recommendations.append("Increase monthly savings by at least ₹1,000.")
+        recommendations.append("Increase monthly savings to at least 20% of income.")
 
-    current_annual_savings = monthly_savings * 12
-    optimized_annual_savings = (monthly_savings + 1000) * 12
+    if months_covered < 3:
+        recommendations.append(f"Build an emergency fund of at least {int(monthly_burn * 3):,} (3× monthly expenses).")
+
+    current_annual_savings = effective_savings * 12
+    optimized_annual_savings = (effective_savings + 1000) * 12
 
     return {
         "financial_score": financial_score,
         "status": status,
-        "monthly_income": monthly_income,
-        "monthly_expenses": total_expenses,
-        "monthly_savings": monthly_savings,
+        "monthly_income": effective_income,
+        "monthly_expenses": effective_expenses,
+        "monthly_savings": effective_savings,
         "savings_rate": round(savings_rate, 2),
         "expense_ratio": round(expense_ratio, 2),
         "emergency_fund_months": round(months_covered, 2),
@@ -253,18 +271,25 @@ def analyze_transactions(payload: TransactionsPayload):
         for cat, amt in pandas_categories.items()
     ]
 
-    # Use provided monthly_income/savings if given; else derive from transactions
-    monthly_income = payload.monthly_income
-    monthly_savings = payload.monthly_savings
+    monthly_income  = payload.monthly_income
+    monthly_expenses = payload.monthly_expenses
+    monthly_savings  = payload.monthly_savings
     current_emergency_fund = payload.current_emergency_fund
+
+    # If monthly_savings not supplied, compute from income - expenses
+    if monthly_savings == 0 and monthly_income > 0 and monthly_expenses > 0:
+        monthly_savings = max(0.0, monthly_income - monthly_expenses)
 
     # Run the financial doctor
     doctor = financial_doctor(
         monthly_income=monthly_income,
+        monthly_expenses=monthly_expenses,
         monthly_savings=monthly_savings,
         current_emergency_fund=current_emergency_fund,
         expenses=expenses_for_doctor,
     )
+
+    net = round(monthly_income - doctor["monthly_expenses"], 2)
 
     return {
         # ── Backward-compat shape (used by existing frontend components) ──
@@ -272,6 +297,7 @@ def analyze_transactions(payload: TransactionsPayload):
             "score": doctor["financial_score"],
             "total_spent": round(total_spent, 2),
             "total_income": float(df[df["category"] == "Income"]["amount"].sum()),
+            "net": net,
             "transactions_count": len(df),
             # Extra summary fields
             "status": doctor["status"],

@@ -1,12 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   ArrowRight, CreditCard, ScanLine, ShieldCheck, Sparkles, TrendingUp, Wand2,
-  CircleDollarSign, CalendarDays, User
+  CircleDollarSign, CalendarDays, User, Trash2, Activity, RefreshCw, Clock,
 } from "lucide-react";
 import { formatINR, useAnalysisStore } from "@/lib/analysisStore";
 import { useAuthStore } from "@/lib/authStore";
-import { getAnalysisHistory } from "@/services/api";
+import { getAnalysisHistory, deleteAnalysis, getUserStats, type AnalysisHistoryItem, type UserStats } from "@/services/api";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -17,8 +18,6 @@ export const Route = createFileRoute("/dashboard")({
   }),
   component: DashboardPage,
 });
-
-
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -146,6 +145,9 @@ function DashboardPage() {
         </section>
       )}
 
+      {/* ── Analysis History (logged-in users only) ── */}
+      {user?.user_id && <AnalysisHistoryPanel userId={user.user_id} />}
+
       {/* ── Tool cards ── */}
       <section>
         <h2 className="font-display text-xl font-bold mb-6">What do you want to do?</h2>
@@ -212,6 +214,170 @@ function DashboardPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+// ── Analysis History Panel ──────────────────────────────────────────────────
+
+const TYPE_META: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  doctor:        { label: "Financial Doctor", color: "bg-accent/15 text-accent border-accent/30",             icon: <Activity className="h-3.5 w-3.5" /> },
+  twin:          { label: "Financial Twin",   color: "bg-chart-2/15 text-chart-2 border-chart-2/30",         icon: <TrendingUp className="h-3.5 w-3.5" /> },
+  subscriptions: { label: "Subscriptions",    color: "bg-destructive/15 text-destructive border-destructive/30", icon: <CreditCard className="h-3.5 w-3.5" /> },
+  interventions: { label: "Action Plan",      color: "bg-success/15 text-success border-success/30",         icon: <Sparkles className="h-3.5 w-3.5" /> },
+};
+
+function AnalysisHistoryPanel({ userId }: { userId: string }) {
+  const [items, setItems] = useState<AnalysisHistoryItem[]>([]);
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [histRes, statsRes] = await Promise.all([
+        getAnalysisHistory(userId, undefined, 20),
+        getUserStats(userId).catch(() => null),
+      ]);
+      setItems(histRes.analyses || []);
+      if (statsRes?.success) setStats(statsRes.stats);
+    } catch (e) {
+      console.error("[AnalysisHistory] fetch failed:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleDelete = async (analysisId: string) => {
+    setDeleting(analysisId);
+    try {
+      await deleteAnalysis(analysisId, userId);
+      setItems((prev) => prev.filter((a) => a.analysis_id !== analysisId));
+      toast.success("Analysis removed from your history.");
+      if (stats) setStats({ ...stats, total_analyses: Math.max(0, stats.total_analyses - 1) });
+    } catch {
+      toast.error("Could not delete analysis. Please try again.");
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  return (
+    <section>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="font-display text-xl font-bold">📊 Analysis History</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Every analysis run saved to your account — all keyed to your user ID.</p>
+        </div>
+        <button
+          onClick={fetchData}
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted transition-colors"
+          title="Refresh history"
+        >
+          <RefreshCw className="h-3.5 w-3.5" /> Refresh
+        </button>
+      </div>
+
+      {/* Stats strip */}
+      {stats && (
+        <div className="mb-4 flex flex-wrap gap-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold shadow-card">
+            <Activity className="h-3.5 w-3.5 text-accent" />
+            <span>{stats.total_analyses} total analyses</span>
+          </div>
+          {stats.last_login_at && (
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold shadow-card">
+              <Clock className="h-3.5 w-3.5 text-chart-2" />
+              <span>Last login: {fmtDate(stats.last_login_at)}</span>
+            </div>
+          )}
+          {stats.member_since && (
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold shadow-card">
+              <User className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Member since {new Date(stats.member_since).toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Content */}
+      {loading ? (
+        <div className="rounded-3xl border border-border bg-card p-10 text-center shadow-card">
+          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+          <p className="mt-3 text-sm text-muted-foreground">Loading your history…</p>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="rounded-3xl border border-border bg-card p-10 text-center shadow-card">
+          <p className="text-2xl mb-2">📭</p>
+          <p className="text-sm font-semibold">No analyses yet</p>
+          <p className="mt-1 text-xs text-muted-foreground">Run your first analysis and it will appear here, saved to your account.</p>
+          <Link to="/analyze" className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-elevated hover:scale-[1.02] transition-all">
+            Start Analysis <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {items.map((item) => {
+            const meta = TYPE_META[item.analysis_type] ?? { label: item.analysis_type, color: "bg-muted text-foreground border-border", icon: null };
+            const score = (item.result as any)?.summary?.score;
+            const isDel = deleting === item.analysis_id;
+            return (
+              <div
+                key={item.analysis_id}
+                className="group relative flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated"
+              >
+                {/* Type badge + date */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${meta.color}`}>
+                    {meta.icon} {meta.label}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">{fmtDate(item.created_at)}</span>
+                </div>
+
+                {/* Key figures */}
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+                  {item.inputs?.monthly_income ? (
+                    <span className="text-muted-foreground">Income: <strong className="text-foreground">{formatINR(item.inputs.monthly_income)}</strong></span>
+                  ) : null}
+                  {item.inputs?.monthly_expenses ? (
+                    <span className="text-muted-foreground">Expenses: <strong className="text-foreground">{formatINR(item.inputs.monthly_expenses)}</strong></span>
+                  ) : null}
+                  {item.inputs?.transaction_count ? (
+                    <span className="text-muted-foreground">Transactions: <strong className="text-foreground">{item.inputs.transaction_count}</strong></span>
+                  ) : null}
+                  {score !== undefined && (
+                    <span className="text-muted-foreground">Health Score: <strong className="text-accent">{score}/100</strong></span>
+                  )}
+                  {item.month && (
+                    <span className="text-muted-foreground">Month: <strong className="text-foreground">{item.month}</strong></span>
+                  )}
+                </div>
+
+                {/* Delete button */}
+                <button
+                  onClick={() => handleDelete(item.analysis_id)}
+                  disabled={isDel}
+                  className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40"
+                  title="Delete this analysis"
+                >
+                  {isDel ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 

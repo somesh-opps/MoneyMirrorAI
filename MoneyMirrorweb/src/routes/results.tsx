@@ -9,7 +9,8 @@ import {
   FinancialTwinSection, ActionCard, EmptyState, SectionHeader, EmergencyReadiness,
 } from "@/components/ResultComponents";
 import { formatINR } from "@/lib/analysisStore";
-import { ArrowRight, ShieldCheck, Activity, Search, Users, Zap, RefreshCw } from "lucide-react";
+import { useAuthStore } from "@/lib/authStore";
+import { ArrowRight, ShieldCheck, Activity, Search, Users, Zap, RefreshCw, BookMarked, X } from "lucide-react";
 
 export const Route = createFileRoute("/results")({
   head: () => ({
@@ -33,6 +34,8 @@ type TabId = (typeof TABS)[number]["id"];
 function ResultsPage() {
   const navigate = useNavigate();
   const { transactions, income, expenses, savings, analysisMonth, doctor, subscriptions, twin, interventions, setAll } = useAnalysisStore();
+  const user = useAuthStore((s) => s.user);
+  const [savedBanner, setSavedBanner] = useState(false);
 
   // FIX #4: Two separate booleans.
   // showLoading = controls whether the loading screen is rendered at all.
@@ -54,6 +57,7 @@ function ResultsPage() {
 
         const d = await analyzeTransactions(transactions, {
           monthly_income: income,
+          monthly_expenses: expenses,
           monthly_savings: monthlySavings,
           current_emergency_fund: savings,
           month: analysisMonth,
@@ -79,6 +83,8 @@ function ResultsPage() {
 
         if (cancelled) return;
         setAll({ doctor: d, subscriptions: sub.subscriptions, twin: t, interventions: ints.interventions });
+        // Show saved banner if user is logged in
+        if (user?.user_id) setSavedBanner(true);
       } catch (err) {
         console.error("[Results] API fetch failed:", err);
       } finally {
@@ -112,6 +118,35 @@ function ResultsPage() {
         potentialSavings={totalPotentialSavings}
         futureGain={twin.potential_gain}
       />
+
+      {/* Saved-to-account banner */}
+      {savedBanner && user?.user_id && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-success/30 bg-success/5 px-5 py-3 text-sm shadow-card">
+          <div className="flex items-center gap-2.5">
+            <BookMarked className="h-4 w-4 shrink-0 text-success" />
+            <span className="text-success font-medium">
+              Analysis saved to your account
+            </span>
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              — linked to user <code className="font-mono text-[11px]">{user.user_id}</code>
+            </span>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <Link
+              to="/dashboard"
+              className="text-xs font-semibold text-success hover:underline"
+            >
+              View history →
+            </Link>
+            <button
+              onClick={() => setSavedBanner(false)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="sticky top-[65px] z-30 -mx-6 bg-background/80 px-6 py-3 backdrop-blur-xl border-b border-border/60">

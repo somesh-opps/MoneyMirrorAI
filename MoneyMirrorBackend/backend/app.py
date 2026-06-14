@@ -151,7 +151,8 @@ try:
     chat_sessions_col = _db["chat_sessions"]
     auth_events_col = _db["auth_events"]
     api_logs_col = _db["api_logs"]
-    analyses_col = _db["analyses"]          # ← NEW: stores every analysis run
+    analyses_col = _db["analyses"]               # stores every analysis run
+    user_subscriptions_col = _db["user_subscriptions"]  # per-user subscription tracker
 
     users_col.create_index("user_id", unique=True)
     users_col.create_index("email", unique=True)
@@ -159,12 +160,15 @@ try:
     auth_events_col.create_index([("email", ASCENDING), ("created_at", DESCENDING)])
     analyses_col.create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
     analyses_col.create_index("analysis_id", unique=True)
+    user_subscriptions_col.create_index("sub_id", unique=True)
+    user_subscriptions_col.create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+    user_subscriptions_col.create_index([("user_id", ASCENDING), ("name", ASCENDING)])
 
     print("✅ Connected to MongoDB successfully")
     _db_ok = True
 except Exception as exc:
     print(f"⚠️  MongoDB connection failed: {exc}")
-    users_col = chat_sessions_col = auth_events_col = api_logs_col = analyses_col = None
+    users_col = chat_sessions_col = auth_events_col = api_logs_col = analyses_col = user_subscriptions_col = None
     _db_ok = False
 
 
@@ -299,16 +303,28 @@ def _save_analysis(user_id, analysis_type: str, payload: dict, result: dict) -> 
             "year":          payload.get("year"),
             # ── Snapshot of key inputs ──
             "inputs": {
-                "monthly_income":   payload.get("monthly_income"),
-                "monthly_expenses": payload.get("monthly_expenses"),
-                "monthly_savings":  payload.get("monthly_savings"),
-                "current_savings":  payload.get("current_savings"),
+                "monthly_income":    payload.get("monthly_income"),
+                "monthly_expenses":  payload.get("monthly_expenses"),
+                "monthly_savings":   payload.get("monthly_savings"),
+                "current_savings":   payload.get("current_savings"),
                 "transaction_count": len(payload.get("transactions", [])),
             },
             # ── Full result from computation engine ──
             "result": result,
         }
         analyses_col.insert_one(doc)
+        # Increment user's analysis counter
+        if users_col is not None:
+            try:
+                users_col.update_one(
+                    {"user_id": str(user_id)},
+                    {
+                        "$inc": {f"analysis_counts.{analysis_type}": 1, "analysis_counts.total": 1},
+                        "$set": {"last_analysis_at": _utc_now()},
+                    },
+                )
+            except Exception:
+                pass
         print(f"[analysis_store] Saved {analysis_type} for user {user_id}")
     except Exception as e:
         print(f"[analysis_store] Failed to save analysis: {e}")
@@ -335,6 +351,37 @@ def proxy_detect_subscriptions():
     result, status = _proxy_post("/detect-subscriptions", data)
     if status == 200:
         _save_analysis(user_id, "subscriptions", data, result)
+        # Upsert each detected subscription into the user_subscriptions collection
+        if user_id and _db_ready() and user_subscriptions_col is not None:
+            for sub in (result.get("subscriptions") or []):
+                name = sub.get("name", "").strip()
+                if not name:
+                    continue
+                try:
+                    user_subscriptions_col.update_one(
+                        {"user_id": str(user_id), "name": name},
+                        {
+                            "$set": {
+                                "monthly_cost":      sub.get("monthly_cost", 0),
+                                "annual_cost":       sub.get("annual_cost", 0),
+                                "potential_savings": sub.get("potential_savings", 0),
+                                "category":          sub.get("category", "Entertainment"),
+                                "action_plan":       sub.get("action_plan", ""),
+                                "source":            "auto",
+                                "updated_at":        _utc_now(),
+                            },
+                            "$setOnInsert": {
+                                "sub_id":     str(_uuid.uuid4()),
+                                "user_id":    str(user_id),
+                                "name":       name,
+                                "status":     "active",
+                                "created_at": _utc_now(),
+                            },
+                        },
+                        upsert=True,
+                    )
+                except Exception as e:
+                    print(f"[subscriptions] upsert failed for {name}: {e}")
     return jsonify(result), status
 
 
@@ -838,6 +885,244 @@ def get_analysis_summary():
             )),
         },
     })
+
+
+@app.route("/api/analyses/<analysis_id>", methods=["DELETE"])
+def delete_analysis(analysis_id):
+    """
+    DELETE /api/analyses/<analysis_id>?user_id=xxx
+    Deletes a single analysis owned by the given user.
+    """
+    if not _db_ready():
+        return _json_error("Database unavailable", 503)
+
+    user_id = request.args.get("user_id", "").strip()
+    if not user_id:
+        return _json_error("user_id is required")
+
+    result = analyses_col.delete_one({"analysis_id": analysis_id, "user_id": user_id})
+    if result.deleted_count == 0:
+        return _json_error("Analysis not found or not owned by this user", 404)
+
+    # Decrement counter (best-effort)
+    try:
+        # We can't easily know the type here, so just decrement total
+        users_col.update_one(
+            {"user_id": user_id},
+            {"$inc": {"analysis_counts.total": -1}},
+        )
+    except Exception:
+        pass
+
+    return jsonify({"success": True, "message": "Analysis deleted"})
+
+
+@app.route("/api/user/stats", methods=["GET"])
+def get_user_stats():
+    """
+    GET /api/user/stats?user_id=xxx
+    Returns quick stats: total analyses, counts per type, last login, last analysis date.
+    """
+    if not _db_ready():
+        return _json_error("Database unavailable", 503)
+
+    user_id = request.args.get("user_id", "").strip()
+    if not user_id:
+        return _json_error("user_id is required")
+
+    user_doc = users_col.find_one({"user_id": user_id}, {"_id": 0, "password": 0, "reset_otp_hash": 0})
+    if not user_doc:
+        return _json_error("User not found", 404)
+
+    # Count analyses per type directly from the collection
+    pipeline = [
+        {"$match": {"user_id": user_id}},
+        {"$group": {"_id": "$analysis_type", "count": {"$sum": 1}}},
+    ]
+    type_counts = {doc["_id"]: doc["count"] for doc in analyses_col.aggregate(pipeline)}
+    total = sum(type_counts.values())
+
+    last_login = user_doc.get("last_login_at")
+    last_analysis = user_doc.get("last_analysis_at")
+
+    return jsonify({
+        "success": True,
+        "stats": {
+            "total_analyses": total,
+            "by_type": type_counts,
+            "last_login_at": last_login.isoformat() if hasattr(last_login, "isoformat") else last_login,
+            "last_analysis_at": last_analysis.isoformat() if hasattr(last_analysis, "isoformat") else last_analysis,
+            "member_since": user_doc.get("created_at").isoformat() if hasattr(user_doc.get("created_at"), "isoformat") else None,
+        },
+    })
+
+
+# ──────────────────────────────────────────────
+# USER SUBSCRIPTIONS CRUD
+# ──────────────────────────────────────────────
+
+@app.route("/api/subscriptions", methods=["GET"])
+def get_subscriptions():
+    """
+    GET /api/subscriptions?user_id=xxx&status=active
+    Returns all subscriptions (auto-detected + manual) for the given user.
+    Optionally filter by status: active | cancelled
+    """
+    if not _db_ready() or user_subscriptions_col is None:
+        return _json_error("Database unavailable", 503)
+
+    user_id = request.args.get("user_id", "").strip()
+    if not user_id:
+        return _json_error("user_id is required")
+
+    status_filter = request.args.get("status")  # optional: "active" or "cancelled"
+
+    query = {"user_id": user_id}
+    if status_filter:
+        query["status"] = status_filter
+
+    docs = list(
+        user_subscriptions_col
+        .find(query, {"_id": 0})
+        .sort("created_at", DESCENDING)
+    )
+
+    # Serialise datetimes
+    for doc in docs:
+        for key in ("created_at", "updated_at"):
+            if key in doc and hasattr(doc[key], "isoformat"):
+                doc[key] = doc[key].isoformat()
+
+    return jsonify({"success": True, "subscriptions": docs, "count": len(docs)})
+
+
+@app.route("/api/subscriptions", methods=["POST"])
+def add_subscription():
+    """
+    POST /api/subscriptions
+    Body: { user_id, name, amount, cycle, category, priority }
+    Creates a manual subscription for the user.
+    """
+    if not _db_ready() or user_subscriptions_col is None:
+        return _json_error("Database unavailable", 503)
+
+    data    = request.get_json(silent=True) or {}
+    user_id = (data.get("user_id") or "").strip()
+    name    = (data.get("name") or "").strip()
+
+    if not user_id:
+        return _json_error("user_id is required")
+    if not name:
+        return _json_error("name is required")
+
+    try:
+        amount   = float(data.get("amount", 0))
+    except (ValueError, TypeError):
+        return _json_error("amount must be a number")
+
+    if amount <= 0:
+        return _json_error("amount must be greater than 0")
+
+    cycle    = data.get("cycle", "monthly")
+    category = data.get("category", "Other")
+    priority = data.get("priority", "medium")
+
+    # Compute monthly cost from cycle
+    cycle_multiplier = {"monthly": 1, "quarterly": 1/3, "yearly": 1/12}
+    monthly_cost = round(amount * cycle_multiplier.get(cycle, 1), 2)
+    annual_cost  = round(monthly_cost * 12, 2)
+
+    doc = {
+        "sub_id":           str(_uuid.uuid4()),
+        "user_id":          user_id,
+        "name":             name,
+        "amount":           round(amount, 2),
+        "cycle":            cycle,
+        "category":         category,
+        "priority":         priority,
+        "monthly_cost":     monthly_cost,
+        "annual_cost":      annual_cost,
+        "potential_savings": round(annual_cost * 0.55, 2),
+        "source":           "manual",
+        "status":           "active",
+        "created_at":       _utc_now(),
+        "updated_at":       _utc_now(),
+    }
+
+    try:
+        user_subscriptions_col.insert_one(doc)
+    except Exception as e:
+        return _json_error(f"Could not save subscription: {e}", 500)
+
+    doc.pop("_id", None)
+    doc["created_at"] = doc["created_at"].isoformat()
+    doc["updated_at"] = doc["updated_at"].isoformat()
+
+    return jsonify({"success": True, "message": "Subscription added", "subscription": doc}), 201
+
+
+@app.route("/api/subscriptions/<sub_id>", methods=["PATCH"])
+def update_subscription(sub_id):
+    """
+    PATCH /api/subscriptions/<sub_id>?user_id=xxx
+    Body: any subset of { name, amount, cycle, category, priority, status }
+    Updates a subscription owned by the user.
+    """
+    if not _db_ready() or user_subscriptions_col is None:
+        return _json_error("Database unavailable", 503)
+
+    user_id = request.args.get("user_id", "").strip()
+    if not user_id:
+        return _json_error("user_id is required")
+
+    data = request.get_json(silent=True) or {}
+    update_fields = {"updated_at": _utc_now()}
+
+    for field in ("name", "cycle", "category", "priority", "status"):
+        if field in data:
+            update_fields[field] = data[field]
+
+    if "amount" in data:
+        try:
+            amount = float(data["amount"])
+        except (ValueError, TypeError):
+            return _json_error("amount must be a number")
+        cycle = data.get("cycle", "monthly")
+        cycle_multiplier = {"monthly": 1, "quarterly": 1/3, "yearly": 1/12}
+        update_fields["amount"]       = round(amount, 2)
+        update_fields["monthly_cost"] = round(amount * cycle_multiplier.get(cycle, 1), 2)
+        update_fields["annual_cost"]  = round(update_fields["monthly_cost"] * 12, 2)
+        update_fields["potential_savings"] = round(update_fields["annual_cost"] * 0.55, 2)
+
+    result = user_subscriptions_col.update_one(
+        {"sub_id": sub_id, "user_id": user_id},
+        {"$set": update_fields},
+    )
+
+    if result.matched_count == 0:
+        return _json_error("Subscription not found or not owned by this user", 404)
+
+    return jsonify({"success": True, "message": "Subscription updated"})
+
+
+@app.route("/api/subscriptions/<sub_id>", methods=["DELETE"])
+def delete_subscription(sub_id):
+    """
+    DELETE /api/subscriptions/<sub_id>?user_id=xxx
+    Permanently removes a subscription owned by the user.
+    """
+    if not _db_ready() or user_subscriptions_col is None:
+        return _json_error("Database unavailable", 503)
+
+    user_id = request.args.get("user_id", "").strip()
+    if not user_id:
+        return _json_error("user_id is required")
+
+    result = user_subscriptions_col.delete_one({"sub_id": sub_id, "user_id": user_id})
+    if result.deleted_count == 0:
+        return _json_error("Subscription not found or not owned by this user", 404)
+
+    return jsonify({"success": True, "message": "Subscription deleted"})
 
 
 # ──────────────────────────────────────────────

@@ -92,7 +92,8 @@ function AnalyzePage() {
     e.preventDefault();
     const validTx = transactions.filter((t) => t.description.trim() !== "" && t.amount > 0);
     if (validTx.length === 0) return toast.error("Please add at least one valid transaction.");
-    if (!income || !expenses) return toast.error("Enter monthly income and expenses.");
+    if (!income || income <= 0) return toast.error("Enter your monthly income — it's needed to calculate your score.");
+    if (!expenses || expenses <= 0) return toast.error("Enter your monthly expenses — it's needed for the Financial Twin.");
     const monthLabel = `${MONTHS[selectedMonth]} ${selectedYear}`;
     setAll({ transactions: validTx, income, expenses, savings, analysisMonth: monthLabel });
     navigate({ to: "/results" });
@@ -332,9 +333,9 @@ function AnalyzePage() {
           <p className="mt-1 text-sm text-muted-foreground">All values in ₹.</p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <NumField label="Monthly Income" value={income} onChange={setIncome} placeholder="85000" />
-            <NumField label="Monthly Expenses" value={expenses} onChange={setExpenses} placeholder="52000" />
-            <NumField label="Current Savings" value={savings} onChange={setSavings} placeholder="120000" />
+            <NumField label="Monthly Income" value={income} onChange={setIncome} placeholder="85000" required />
+            <NumField label="Monthly Expenses" value={expenses} onChange={setExpenses} placeholder="52000" required />
+            <NumField label="Current Savings / Emergency Fund" value={savings} onChange={setSavings} placeholder="120000" />
           </div>
         </section>
 
@@ -358,15 +359,19 @@ function NumField({
   value,
   onChange,
   placeholder,
+  required,
 }: {
   label: string;
   value: number;
   onChange: (n: number) => void;
   placeholder: string;
+  required?: boolean;
 }) {
   return (
     <div>
-      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
+      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}{required && <span className="ml-1 text-destructive">*</span>}
+      </label>
       <div className="relative mt-2">
         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₹</span>
         <input
@@ -376,6 +381,7 @@ function NumField({
           value={value || ""}
           onChange={(e) => onChange(Number(e.target.value))}
           placeholder={placeholder}
+          required={required}
           className="w-full rounded-xl border border-input bg-background py-3 pl-8 pr-3 font-mono text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
         />
       </div>

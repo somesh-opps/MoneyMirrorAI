@@ -171,7 +171,7 @@ function getUserId(): string | undefined {
 // ─── Financial endpoints (proxied through Flask → FastAPI) ────
 export const analyzeTransactions = (
   transactions: Transaction[],
-  opts?: { monthly_income?: number; monthly_savings?: number; current_emergency_fund?: number; month?: string },
+  opts?: { monthly_income?: number; monthly_expenses?: number; monthly_savings?: number; current_emergency_fund?: number; month?: string },
 ) =>
   withFallback<DoctorResponse>(
     async () =>
@@ -179,6 +179,7 @@ export const analyzeTransactions = (
         await api.post("/analyze-transactions", {
           transactions,
           monthly_income: opts?.monthly_income ?? 0,
+          monthly_expenses: opts?.monthly_expenses ?? 0,
           monthly_savings: opts?.monthly_savings ?? 0,
           current_emergency_fund: opts?.current_emergency_fund ?? 0,
           user_id: getUserId(),       // ← persists to DB
@@ -228,6 +229,73 @@ export const generateInterventions = (payload: {
     "interventions",
   );
 
+// ─── Per-user Subscription CRUD (MongoDB-backed) ─────────────
+export type DbSubscription = {
+  sub_id: string;
+  user_id: string;
+  name: string;
+  amount?: number;
+  cycle?: "monthly" | "quarterly" | "yearly";
+  category: string;
+  priority?: "high" | "medium" | "low";
+  monthly_cost: number;
+  annual_cost: number;
+  potential_savings: number;
+  source: "auto" | "manual";
+  status: "active" | "cancelled";
+  action_plan?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export const getUserSubscriptions = async (
+  userId: string,
+  status?: "active" | "cancelled",
+): Promise<{ success: boolean; subscriptions: DbSubscription[]; count: number }> => {
+  const res = await api.get("/api/subscriptions", { params: { user_id: userId, status } });
+  return res.data;
+};
+
+export const addUserSubscription = async (payload: {
+  user_id: string;
+  name: string;
+  amount: number;
+  cycle: "monthly" | "quarterly" | "yearly";
+  category: string;
+  priority: "high" | "medium" | "low";
+}): Promise<{ success: boolean; message: string; subscription: DbSubscription }> => {
+  const res = await api.post("/api/subscriptions", payload);
+  return res.data;
+};
+
+export const updateUserSubscription = async (
+  subId: string,
+  userId: string,
+  fields: Partial<{
+    name: string;
+    amount: number;
+    cycle: "monthly" | "quarterly" | "yearly";
+    category: string;
+    priority: "high" | "medium" | "low";
+    status: "active" | "cancelled";
+  }>,
+): Promise<{ success: boolean; message: string }> => {
+  const res = await api.patch(`/api/subscriptions/${subId}`, fields, {
+    params: { user_id: userId },
+  });
+  return res.data;
+};
+
+export const deleteUserSubscription = async (
+  subId: string,
+  userId: string,
+): Promise<{ success: boolean; message: string }> => {
+  const res = await api.delete(`/api/subscriptions/${subId}`, {
+    params: { user_id: userId },
+  });
+  return res.data;
+};
+
 // ─── Analysis history & personalization ─────────────────────────
 export type AnalysisHistoryItem = {
   analysis_id: string;
@@ -272,6 +340,29 @@ export const getAnalysisSummary = async (
   userId: string,
 ): Promise<{ success: boolean; total_analyses: number; summary: AnalysisSummary | null }> => {
   const res = await api.get("/api/analyses/summary", { params: { user_id: userId } });
+  return res.data;
+};
+
+export const deleteAnalysis = async (
+  analysisId: string,
+  userId: string,
+): Promise<{ success: boolean; message: string }> => {
+  const res = await api.delete(`/api/analyses/${analysisId}`, { params: { user_id: userId } });
+  return res.data;
+};
+
+export type UserStats = {
+  total_analyses: number;
+  by_type: Record<string, number>;
+  last_login_at: string | null;
+  last_analysis_at: string | null;
+  member_since: string | null;
+};
+
+export const getUserStats = async (
+  userId: string,
+): Promise<{ success: boolean; stats: UserStats }> => {
+  const res = await api.get("/api/user/stats", { params: { user_id: userId } });
   return res.data;
 };
 
