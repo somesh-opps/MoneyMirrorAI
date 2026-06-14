@@ -50,3 +50,12 @@
 127.0.0.1 - - [14/Jun/2026 11:21:58] "GET /api/analyses?user_id=USR-1781410338-8982&limit=20&skip=0 HTTP/1.1" 200 -
 127.0.0.1 - - [14/Jun/2026 11:21:58] "GET /api/user/stats?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
 127.0.0.1 - - [14/Jun/2026 11:21:58] "GET /api/user/stats?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:34:13] "GET /api/subscriptions?user_id=USR-1781410338-8982&status=active HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:34:13] "GET /api/analyses/summary?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:34:13] "GET /api/subscriptions?user_id=USR-1781410338-8982&status=active HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:34:13] "GET /api/analyses/summary?user_id=USR-1781410338-8982 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:34:13] "GET /api/analyses?user_id=USR-1781410338-8982&type=doctor&limit=50&skip=0 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:34:13] "GET /api/analyses?user_id=USR-1781410338-8982&type=doctor&limit=50&skip=0 HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:34:24] "POST /api/chat/voice HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:34:34] "OPTIONS /api/chat/ai HTTP/1.1" 200 -
+127.0.0.1 - - [14/Jun/2026 11:34:35] "POST /api/chat/ai HTTP/1.1" 200 -
