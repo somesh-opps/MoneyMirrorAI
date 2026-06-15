@@ -1,13 +1,11 @@
-# 💸 MoneyMirror AI
-
 <div align="center">
-  <img src="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?q=80&w=1200&auto=format&fit=crop" alt="MoneyMirror Banner" width="100%" style="border-radius: 12px; object-fit: cover; max-height: 300px;"/>
+  <h1>💸 MoneyMirror AI</h1>
+  <p><b>Your intelligent, AI-driven personal financial twin and analytics platform.</b></p>
   <br/>
+  <a href="https://money-mirror-ai.vercel.app/">
+    <img src="https://img.shields.io/badge/Live_Demo-Try_It_Now!-success?style=for-the-badge&logo=vercel" alt="Live Demo">
+  </a>
   <br/>
-  <i>Your intelligent, AI-driven personal financial twin and analytics platform.</i>
-  <br/>
-  <br/>
-  <b>🚀 <a href="https://money-mirror-ai.vercel.app/">Try the Live Demo</a></b>
 </div>
 
 ---
