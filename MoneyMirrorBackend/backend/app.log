@@ -80,3 +80,5 @@
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 117-959-825
+/usr/lib/python3.14/multiprocessing/resource_tracker.py:396: UserWarning: resource_tracker: There appear to be 2 leaked semaphore objects to clean up at shutdown: {'/mp-wbm5zhi9', '/mp-o2hbv3vo'}
+  warnings.warn(

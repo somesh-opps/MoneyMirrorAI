@@ -1,10 +1,25 @@
 # 💸 MoneyMirror AI
 
 <div align="center">
-  <img src="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?q=80&w=1200&auto=format&fit=crop" alt="MoneyMirror Banner" width="100%" style="border-radius: 12px; object-fit: cover; max-height: 300px;"/>
+  <img src="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?q=80&w=1200&auto=format&fit=crop" alt="MoneyMirror Banner" width="100%" style="border-radius: 12px; object-fit: cover; max-height: 300px; box-shadow: 0 8px 16px rgba(0,0,0,0.15);"/>
+  
   <br/>
   <br/>
-  <i>Your intelligent, AI-driven personal financial twin and analytics platform.</i>
+  
+  <p>
+    <b><i>Your intelligent, AI-driven personal financial twin and analytics platform.</i></b>
+  </p>
+
+  <p>
+    <a href="https://react.dev/"><img src="https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB" alt="React"></a>
+    <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi" alt="FastAPI"></a>
+    <a href="https://www.mongodb.com/"><img src="https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB"></a>
+    <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS"></a>
+  </p>
+
+  <h3>
+    <b><a href="https://money-mirror-ai.vercel.app/">🚀 Try the Live Demo 🚀</a></b>
+  </h3>
 </div>
 
 ---
@@ -22,30 +37,24 @@
 
 ## 🏗 Architecture
 
-MoneyMirror utilizes a modern, decoupled architecture designed for scale and performance:
+> MoneyMirror utilizes a modern, decoupled microservice-inspired architecture designed for scale, high performance, and rapid iteration.
 
-- **Frontend (`MoneyMirrorweb`)**: A lightning-fast, highly interactive Single Page Application (SPA) built with React 19, Vite, and TanStack Router. It uses Zustand for local state management and Tailwind CSS for a premium, responsive UI.
-- **Backend API & Gateway (`MoneyMirrorBackend` - Flask)**: Acts as the robust primary gateway handling user authentication, secure file uploads, and session management.
-- **Computation Engine (`MoneyMirrorBackend` - FastAPI)**: A high-performance Python backend dedicated to complex data manipulation, machine learning inference (Whisper), and heavy algorithmic calculations.
+- 🖥️ **Frontend (`MoneyMirrorweb`)**: A lightning-fast, highly interactive Single Page Application (SPA) built with React 19, Vite, and TanStack Router. It leverages Zustand for state and Tailwind CSS for a premium, responsive UI.
+- 🛡️ **Backend Gateway (`MoneyMirrorBackend` - Flask)**: Acts as the robust primary gateway handling user authentication, secure file uploads, and session management.
+- ⚡ **Computation Engine (`MoneyMirrorBackend` - FastAPI)**: A high-performance Python backend dedicated to complex data manipulation, machine learning inference (via Whisper), and heavy algorithmic calculations.
 
 ---
 
 ## 🛠 Tech Stack
 
-### 🎨 Frontend
-- **Framework**: React 19 + Vite
-- **Routing**: TanStack Router
-- **Styling**: Tailwind CSS v4, Radix UI Primitives, Framer Motion (via tw-animate-css)
-- **Charts**: Recharts
-- **State Management**: Zustand, React Query
-- **Forms & Validation**: React Hook Form + Zod
-
-### ⚙️ Backend
-- **Gateway Server**: Flask
-- **Computation Engine**: FastAPI + Uvicorn
-- **Database**: MongoDB (PyMongo)
-- **Data Science & ML**: NumPy, Pandas, `faster-whisper`
-- **Audio Processing**: FFmpeg, PyAV, python-multipart
+| Category | Technologies |
+| :--- | :--- |
+| **🎨 Frontend** | React 19, Vite, TanStack Router, Tailwind CSS v4, Radix UI, Framer Motion |
+| **📊 Data Vis & State** | Recharts, Zustand, React Query |
+| **⚙️ Backend Core** | Flask (Gateway API), FastAPI (Computation Engine), Uvicorn |
+| **🗄️ Database** | MongoDB (PyMongo) |
+| **🧠 ML & Analytics** | NumPy, Pandas, `faster-whisper` |
+| **🎙️ Audio Proc** | FFmpeg, PyAV, python-multipart |
 
 ---
 
@@ -133,6 +142,9 @@ This project is licensed under the terms of the MIT License. See the [LICENSE](.
 
 ---
 
+<br/>
+
 <div align="center">
-  <i>Built to make personal finance intelligent, transparent, and manageable.</i>
+  <p><b>Built to make personal finance intelligent, transparent, and manageable.</b></p>
+  <p>⭐ If you like this project, please consider giving it a star! ⭐</p>
 </div>
